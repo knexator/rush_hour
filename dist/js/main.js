@@ -6084,7 +6084,7 @@ var require_key_codes = __commonJS({
       middle: 1,
       right: 2
     };
-    var KeyboardKeys = {
+    var KeyboardKeys2 = {
       backspace: 8,
       tab: 9,
       enter: 13,
@@ -6187,7 +6187,7 @@ var require_key_codes = __commonJS({
       close_braket: 221,
       single_quote: 222
     };
-    module.exports = { KeyboardKeys, MouseButtons };
+    module.exports = { KeyboardKeys: KeyboardKeys2, MouseButtons };
   }
 });
 
@@ -6197,7 +6197,7 @@ var require_input = __commonJS({
     "use strict";
     var IManager = require_manager();
     var Vector22 = require_vector2();
-    var { MouseButton, MouseButtons, KeyboardKey, KeyboardKeys } = require_key_codes();
+    var { MouseButton, MouseButtons, KeyboardKey, KeyboardKeys: KeyboardKeys2 } = require_key_codes();
     var _logger = require_logger().getLogger("input");
     var Input = class extends IManager {
       constructor() {
@@ -6205,7 +6205,7 @@ var require_input = __commonJS({
         this._callbacks = null;
         this._targetElement = window;
         this.MouseButtons = MouseButtons;
-        this.KeyboardKeys = KeyboardKeys;
+        this.KeyboardKeys = KeyboardKeys2;
         this.preventDefaults = false;
         this.enableMouseDeltaWhileMouseWheelDown = true;
         this.disableContextMenu = true;
@@ -10437,6 +10437,7 @@ var import_vector2 = __toESM(require_vector2());
 var import_sprite = __toESM(require_sprite());
 var import_shaku2 = __toESM(require_lib());
 var import_circle = __toESM(require_circle());
+var import_key_codes = __toESM(require_key_codes());
 var import_animator = __toESM(require_animator());
 var CONFIG = {
   value_1: 100,
@@ -10469,6 +10470,7 @@ function localPos(pos) {
 }
 var TILE_SIZE = 50;
 var OFFSET = new import_vector2.default(100, 100);
+var THINGY = 0;
 var Grid = class {
   constructor(w, h) {
     this.w = w;
@@ -10477,11 +10479,17 @@ var Grid = class {
   }
   tiles;
   draw() {
-    for (let i = 0; i <= this.w; i++) {
-      import_shaku.default.gfx.drawLine(OFFSET.add(i * TILE_SIZE, 0), OFFSET.add(i * TILE_SIZE, this.h * TILE_SIZE), import_color.default.black);
-    }
-    for (let j = 0; j <= this.h; j++) {
-      import_shaku.default.gfx.drawLine(OFFSET.add(0, j * TILE_SIZE), OFFSET.add(this.w * TILE_SIZE, j * TILE_SIZE), import_color.default.black);
+    for (let j = 0; j < this.h; j++) {
+      for (let i = 0; i < this.w; i++) {
+        let tile = this.tiles[j][i];
+        import_shaku2.gfx.drawLinesStrip([
+          this.frame2screen(new Frame(tile, import_vector2.default.zero, 0)),
+          this.frame2screen(new Frame(tile, import_vector2.default.right, 0)),
+          this.frame2screen(new Frame(tile, import_vector2.default.one, 0)),
+          this.frame2screen(new Frame(tile, import_vector2.default.down, 0)),
+          this.frame2screen(new Frame(tile, import_vector2.default.zero, 0))
+        ], import_color.default.black);
+      }
     }
     for (let j = 0; j < this.h; j++) {
       for (let i = 0; i < this.w; i++) {
@@ -10527,6 +10535,37 @@ var Tile = class {
     let nj = this.j + DJ[dir];
     if (ni < 0 || ni >= this.grid.w || nj < 0 || nj >= this.grid.h)
       return null;
+    if (ni === 3 && nj === 3) {
+      if (THINGY > 0.5) {
+        switch (this.i) {
+          case 2:
+            nj += 1;
+            break;
+          case 4:
+            nj -= 1;
+            break;
+          case 3:
+            ni += this.j === 2 ? 1 : -1;
+            break;
+          default:
+            throw new Error("bad grid");
+        }
+      } else if (THINGY < -0.5) {
+        switch (this.i) {
+          case 2:
+            nj -= 1;
+            break;
+          case 4:
+            nj += 1;
+            break;
+          case 3:
+            ni += this.j === 2 ? -1 : 1;
+            break;
+          default:
+            throw new Error("bad grid");
+        }
+      }
+    }
     return this.grid.tiles[nj][ni];
   }
   debugDrawFull(color) {
@@ -10571,11 +10610,14 @@ var Frame = class {
       let new_tile = this.tile.adjacent(rotateDir(dir, this.dir));
       if (new_tile === null)
         return null;
-      this.tile = new_tile;
       this.pos = new_pos.sub(DIRS[dir]);
       if (!localPos(this.pos)) {
         throw new Error("implementation error in Frame.move");
       }
+      while (new_tile.adjacent(rotateDir(oppDir(dir), this.dir)) !== this.tile) {
+        this.dir = rotateDir(this.dir, 1);
+      }
+      this.tile = new_tile;
       return this;
     }
   }
@@ -10603,6 +10645,15 @@ var Car = class {
   tail;
   next;
   prev;
+  recalcStuff() {
+    let cur_head = this.head.clone();
+    for (let k = 1; k < this.length; k++) {
+      cur_head.move(2, 1);
+    }
+    this.tail = cur_head.clone();
+    this.prev = cur_head.move(2, 1);
+    this.next = this.head.clone().move(0, 1);
+  }
   addOffset(delta) {
     this.offset += delta;
     if (this.offset > 0.1 && (this.next === null || this.next.tile.car !== null)) {
@@ -10643,14 +10694,22 @@ var Car = class {
 var dragging = null;
 var grid = new Grid(6, 6);
 var cars = [
-  new Car(new Frame(grid.tiles[2][2], import_vector2.default.one.mulSelf(0.5), 0), 2, import_color.default.red),
-  new Car(new Frame(grid.tiles[2][5], import_vector2.default.one.mulSelf(0.5), 1), 2, import_color.default.green),
-  new Car(new Frame(grid.tiles[5][3], import_vector2.default.one.mulSelf(0.5), 2), 3, import_color.default.yellow)
+  new Car(new Frame(grid.tiles[3][2], import_vector2.default.one.mulSelf(0.5), 0), 2, import_color.default.red)
 ];
 function step() {
   import_shaku.default.startFrame();
   import_shaku.default.gfx.clear(import_shaku.default.utils.Color.cornflowerblue);
   if (dragging === null) {
+    if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.down)) {
+      THINGY = 0;
+      cars.forEach((c) => c.recalcStuff());
+    } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.right)) {
+      THINGY = 1;
+      cars.forEach((c) => c.recalcStuff());
+    } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.left)) {
+      THINGY = -1;
+      cars.forEach((c) => c.recalcStuff());
+    }
     if (import_shaku2.input.mousePressed()) {
       let grabbed_frame = grid.screen2frame(import_shaku2.input.mousePosition);
       if (grabbed_frame !== null && grabbed_frame.tile.car !== null) {

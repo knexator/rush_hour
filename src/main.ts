@@ -61,6 +61,9 @@ function localPos(pos: Vector2): boolean {
 const TILE_SIZE = 50;
 const OFFSET = new Vector2(100, 100);
 
+/** between -1 & 1, the grid's deformation; 1 means (3,2) goes to (4,3) */
+let THINGY = 0;
+
 /** Spatial game data */
 class Grid {
     // todo: change this for general grids
@@ -73,11 +76,24 @@ class Grid {
     }
 
     draw() {
-        for (let i = 0; i <= this.w; i++) {
+        /*for (let i = 0; i <= this.w; i++) {
             Shaku.gfx.drawLine(OFFSET.add(i * TILE_SIZE, 0), OFFSET.add(i * TILE_SIZE, this.h * TILE_SIZE), Color.black);
         }
         for (let j = 0; j <= this.h; j++) {
             Shaku.gfx.drawLine(OFFSET.add(0, j * TILE_SIZE), OFFSET.add(this.w * TILE_SIZE, j * TILE_SIZE), Color.black);
+        }*/
+
+        for (let j = 0; j < this.h; j++) {
+            for (let i = 0; i < this.w; i++) {
+                let tile = this.tiles[j][i];
+                gfx.drawLinesStrip([
+                    this.frame2screen(new Frame(tile, Vector2.zero, 0)),
+                    this.frame2screen(new Frame(tile, Vector2.right, 0)),
+                    this.frame2screen(new Frame(tile, Vector2.one, 0)),
+                    this.frame2screen(new Frame(tile, Vector2.down, 0)),
+                    this.frame2screen(new Frame(tile, Vector2.zero, 0)),
+                ], Color.black);
+            }
         }
 
         for (let j = 0; j < this.h; j++) {
@@ -140,6 +156,39 @@ class Tile {
         let ni = this.i + DI[dir];
         let nj = this.j + DJ[dir];
         if (ni < 0 || ni >= this.grid.w || nj < 0 || nj >= this.grid.h) return null;
+
+        if (ni === 3 && nj === 3) {
+            if (THINGY > .5) {
+                switch (this.i) {
+                    case 2:
+                        nj += 1;
+                        break;
+                    case 4:
+                        nj -= 1;
+                        break;
+                    case 3:
+                        ni += (this.j === 2) ? 1 : -1;
+                        break;
+                    default:
+                        throw new Error("bad grid");
+                }
+            } else if (THINGY < -.5) {
+                switch (this.i) {
+                    case 2:
+                        nj -= 1;
+                        break;
+                    case 4:
+                        nj += 1;
+                        break;
+                    case 3:
+                        ni += (this.j === 2) ? -1 : 1;
+                        break;
+                    default:
+                        throw new Error("bad grid");
+                }
+            }
+        }
+
         return this.grid.tiles[nj][ni];
     }
 
@@ -194,12 +243,27 @@ class Frame {
             let new_tile = this.tile.adjacent(rotateDir(dir, this.dir));
             if (new_tile === null) return null;
 
-            this.tile = new_tile;
             // go back to a 0..1 position
             this.pos = new_pos.sub(DIRS[dir]);
             if (!localPos(this.pos)) {
                 throw new Error("implementation error in Frame.move");
             }
+
+            // going back should bring us back; if not, correct direction
+            while (new_tile.adjacent(rotateDir(oppDir(dir), this.dir)) !== this.tile) {
+                this.dir = rotateDir(this.dir, 1);
+            }
+            /*for (var i = 0; i < 4; i++) {
+                if (this.tile == new_tile.adjacent[((4 + i + 2 + ind - this.dir) % 4)]) {
+                    this.dir = i % 4 as direction;
+                    break;
+                }
+            }*/
+            this.tile = new_tile;
+            /*while (this.tile.adjacent(rotateDir(this.dir, 2)) {
+
+            }*/
+
             return this;
         }
     }
@@ -234,6 +298,16 @@ class Car {
         this.tail = cur_head.clone();
         this.prev = cur_head.move(2, 1.0);
         this.next = head.clone().move(0, 1.0);
+    }
+
+    recalcStuff() {
+        let cur_head = this.head.clone();
+        for (let k = 1; k < this.length; k++) {
+            cur_head.move(2, 1.0);
+        }
+        this.tail = cur_head.clone();
+        this.prev = cur_head.move(2, 1.0);
+        this.next = this.head.clone().move(0, 1.0);
     }
 
     addOffset(delta: number) {
@@ -302,9 +376,9 @@ let dragging: {
 let grid = new Grid(6, 6);
 
 let cars = [
-    new Car(new Frame(grid.tiles[2][2], Vector2.one.mulSelf(.5), 0), 2, Color.red),
-    new Car(new Frame(grid.tiles[2][5], Vector2.one.mulSelf(.5), 1), 2, Color.green),
-    new Car(new Frame(grid.tiles[5][3], Vector2.one.mulSelf(.5), 2), 3, Color.yellow),
+    new Car(new Frame(grid.tiles[3][2], Vector2.one.mulSelf(.5), 0), 2, Color.red),
+    // new Car(new Frame(grid.tiles[2][5], Vector2.one.mulSelf(.5), 1), 2, Color.green),
+    // new Car(new Frame(grid.tiles[5][3], Vector2.one.mulSelf(.5), 2), 3, Color.yellow),
 ]
 
 /*let magic_sprite = new Sprite(cars_texture);
@@ -329,6 +403,16 @@ function step() {
     // TODO: PUT YOUR GAME UPDATES / RENDERING HERE
 
     if (dragging === null) {
+        if (input.keyDown(KeyboardKeys.down)) {
+            THINGY = 0;
+            cars.forEach(c => c.recalcStuff());
+        } else if (input.keyDown(KeyboardKeys.right)) {
+            THINGY = 1;
+            cars.forEach(c => c.recalcStuff());
+        } else if (input.keyDown(KeyboardKeys.left)) {
+            THINGY = -1;
+            cars.forEach(c => c.recalcStuff());
+        }
         if (input.mousePressed()) {
             let grabbed_frame = grid.screen2frame(input.mousePosition);
             if (grabbed_frame !== null && grabbed_frame.tile.car !== null) {
@@ -358,8 +442,12 @@ function step() {
             let backward = grid.frame2screen(cur_mouse_frame.clone().move(2, .05)!);
             let delta_vec = forward.sub(backward).normalizeSelf();
             dragging.car.addOffset(Vector2.dot(delta_vec, input.mouseDelta) / TILE_SIZE);
-
-            // dragging.addOffset(4 * Shaku.gameTime.delta * ((input.keyDown(KeyboardKeys.d) ? 1 : 0) - (input.keyDown(KeyboardKeys.a) ? 1 : 0)));
+            /*if (dragging.car.head.tile === grid.tiles[3][3]) {
+                console.log("no!");
+            }*/
+            // console.log(dragging.car.head.dir);
+            // console.log(cars[0].head);
+            // dragging.car.addOffset(4 * Shaku.gameTime.delta * ((input.keyDown(KeyboardKeys.d) ? 1 : 0) - (input.keyDown(KeyboardKeys.a) ? 1 : 0)));
         }
     }
 
