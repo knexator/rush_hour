@@ -46,6 +46,11 @@ const DIRS: Record<direction, Vector2> = [
 const DI: Record<direction, number> = [1, 0, -1, 0];
 const DJ: Record<direction, number> = [0, 1, 0, -1];
 
+// hacky
+// this gives the i,j of the corner in "direction + 45º"
+const DI_CORNER: Record<direction, number> = [1, 0, 0, 1];
+const DJ_CORNER: Record<direction, number> = [0, 0, 1, 1];
+
 function oppDir(dir: direction): direction {
     return ((2 + dir) % 4) as direction;
 }
@@ -68,11 +73,19 @@ let THINGY = 0;
 class Grid {
     // todo: change this for general grids
     public tiles: Tile[][];
+    public corners: Corner[][];
     constructor(
         public w: number,
         public h: number,
     ) {
-        this.tiles = makeRectArrayFromFunction<Tile>(w, h, (i, j) => new Tile(i, j, this));
+        this.corners = makeRectArrayFromFunction<Corner>(w + 1, h + 1, (i, j) => {
+            return new Corner(
+                i, j,
+                OFFSET.add(i * TILE_SIZE, j * TILE_SIZE),
+                i == 0 || j == 0 || i == w || j == h
+            )
+        });
+        this.tiles = makeRectArrayFromFunction<Tile>(w, h, (i, j) => new Tile(i, j));
     }
 
     draw() {
@@ -116,13 +129,37 @@ class Grid {
     }
 
     frame2screen(frame: Frame): Vector2 {
-        // todo: change this for general grids
-        let oriented_frame = frame.clone().redir(0);
-        return OFFSET.add(oriented_frame.tile.i * TILE_SIZE, oriented_frame.tile.j * TILE_SIZE).add(oriented_frame.pos.mul(TILE_SIZE));
-        // let pos = screen_pos.sub(OFFSET).divSelf(TILE_SIZE);
-        // let i = Math.floor(pos.x);
-        // let j = Math.floor(pos.y);
-        // return new Frame(this.tiles[j][i], new Vector2(pos.x % 1, pos.y % 1), 0);
+        frame = frame.clone().redir(0);
+        var top = Vector2.lerp(frame.tile.corner(1).pos, frame.tile.corner(0).pos, frame.pos.x);
+        var bot = Vector2.lerp(frame.tile.corner(2).pos, frame.tile.corner(3).pos, frame.pos.x);
+        return Vector2.lerp(top, bot, frame.pos.y);
+    }
+}
+
+class Corner {
+    constructor(
+        public i: number, // todo: change this for general grids
+        public j: number, // todo: change this for general grids
+        public pos: Vector2,
+        public fixed: boolean,
+    ) { }
+
+    updatePos() {
+        // if (this.i !== 3 && this.i !== 4) return;
+        // if (this.j !== 3 && this.j !== 4) return;
+        if (this.i === 3 && this.j === 3) {
+            this.pos.copy(OFFSET.add(TILE_SIZE * 3, TILE_SIZE * 3).add(new Vector2(.5, .5).mulSelf(TILE_SIZE * THINGY)));
+        }
+        if (this.i === 4 && this.j === 4) {
+            this.pos.copy(OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 4).add(new Vector2(-.5, -.5).mulSelf(TILE_SIZE * THINGY)));
+        }
+
+        if (this.i === 3 && this.j === 4) {
+            this.pos.copy(OFFSET.add(TILE_SIZE * 3, TILE_SIZE * 4).add(new Vector2(-.5, .5).mulSelf(TILE_SIZE * THINGY)));
+        }
+        if (this.i === 4 && this.j === 3) {
+            this.pos.copy(OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 3).add(new Vector2(.5, -.5).mulSelf(TILE_SIZE * THINGY)));
+        }
     }
 }
 
@@ -131,8 +168,6 @@ class Tile {
     constructor(
         public i: number, // todo: change this for general grids
         public j: number, // todo: change this for general grids
-        public grid: Grid,
-
         // Game logic
         public car: Car | null = null,
     ) {
@@ -155,7 +190,7 @@ class Tile {
         // todo: change this for general grids
         let ni = this.i + DI[dir];
         let nj = this.j + DJ[dir];
-        if (ni < 0 || ni >= this.grid.w || nj < 0 || nj >= this.grid.h) return null;
+        if (ni < 0 || ni >= grid.w || nj < 0 || nj >= grid.h) return null;
 
         if (ni === 3 && nj === 3) {
             if (THINGY > .5) {
@@ -189,7 +224,28 @@ class Tile {
             }
         }
 
-        return this.grid.tiles[nj][ni];
+        return grid.tiles[nj][ni];
+    }
+
+    corner(dir: direction): Corner {
+        // todo: change this for general grids
+        let ni = this.i + DI_CORNER[dir];
+        let nj = this.j + DJ_CORNER[dir];
+        return grid.corners[nj][ni];
+    }
+
+    updateSprite() {
+        console.log()
+        this.sprite._cachedVertices = [
+            // @ts-ignore
+            new Vertex(this.corner(1).pos, Vector2.zero), // topLeft
+            // @ts-ignore
+            new Vertex(this.corner(0).pos), // topRight
+            // @ts-ignore
+            new Vertex(this.corner(2).pos), // bottomLeft
+            // @ts-ignore
+            new Vertex(this.corner(3).pos, Vector2.one), // bottomRight
+        ]
     }
 
     debugDrawFull(color: Color) {
@@ -311,6 +367,7 @@ class Car {
     }
 
     addOffset(delta: number) {
+        delta = clamp(delta, -1, 1);
         this.offset += delta;
 
         // Check movement legality
@@ -354,14 +411,10 @@ class Car {
 
         let visual_head = this.head.clone().move(0, this.offset)!;
         for (let k = 0; k < this.length; k++) {
-            gfx.fillCircle(new Circle(this.grid.frame2screen(visual_head), TILE_SIZE / 3), Color.white);
+            gfx.fillCircle(new Circle(grid.frame2screen(visual_head), TILE_SIZE / 3), Color.white);
             // gfx.fillCircle(new Circle(this.grid.frame2screen(visual_head), TILE_SIZE / 3), this.color);
             visual_head.move(2, 1.0);
         }
-    }
-
-    get grid(): Grid {
-        return this.head.tile.grid;
     }
 }
 
@@ -374,6 +427,11 @@ let dragging: {
 } | null = null;
 
 let grid = new Grid(6, 6);
+for (let j = 0; j < grid.h; j++) {
+    for (let i = 0; i < grid.w; i++) {
+        grid.tiles[j][i].updateSprite();
+    }
+}
 
 let cars = [
     new Car(new Frame(grid.tiles[3][2], Vector2.one.mulSelf(.5), 0), 2, Color.red),
@@ -394,6 +452,22 @@ magic_sprite._cachedVertices = [
     new Vertex(new Vector2(500, 450), Vector2.one), // bottomRight
 ]*/
 
+function specialTileInUse(): boolean {
+    if (Math.abs(THINGY) <= .5) {
+        return grid.tiles[3][3].car !== null;
+    } else {
+        let car_top = grid.tiles[2][3].car;
+        let car_bot = grid.tiles[4][3].car;
+        let car_left = grid.tiles[3][2].car;
+        let car_right = grid.tiles[3][4].car;
+        if (THINGY > .5) {
+            return (car_top !== null && car_right !== null && car_top === car_right) || (car_bot !== null && car_left !== null && car_bot === car_left)
+        } else {
+            return (car_top !== null && car_left !== null && car_top === car_left) || (car_bot !== null && car_right !== null && car_bot === car_right)
+        }
+    }
+}
+
 // do a single main loop step and request the next step
 function step() {
     // start a new frame and clear screen
@@ -403,15 +477,18 @@ function step() {
     // TODO: PUT YOUR GAME UPDATES / RENDERING HERE
 
     if (dragging === null) {
-        if (input.keyDown(KeyboardKeys.down)) {
-            THINGY = 0;
-            cars.forEach(c => c.recalcStuff());
-        } else if (input.keyDown(KeyboardKeys.right)) {
-            THINGY = 1;
-            cars.forEach(c => c.recalcStuff());
-        } else if (input.keyDown(KeyboardKeys.left)) {
-            THINGY = -1;
-            cars.forEach(c => c.recalcStuff());
+        if (!specialTileInUse()) {
+            if (input.keyDown(KeyboardKeys.down)) {
+                THINGY = 0;
+                cars.forEach(c => c.recalcStuff());
+
+            } else if (input.keyDown(KeyboardKeys.right)) {
+                THINGY = 1;
+                cars.forEach(c => c.recalcStuff());
+            } else if (input.keyDown(KeyboardKeys.left)) {
+                THINGY = -1;
+                cars.forEach(c => c.recalcStuff());
+            }
         }
         if (input.mousePressed()) {
             let grabbed_frame = grid.screen2frame(input.mousePosition);
@@ -448,6 +525,12 @@ function step() {
             // console.log(dragging.car.head.dir);
             // console.log(cars[0].head);
             // dragging.car.addOffset(4 * Shaku.gameTime.delta * ((input.keyDown(KeyboardKeys.d) ? 1 : 0) - (input.keyDown(KeyboardKeys.a) ? 1 : 0)));
+        }
+    }
+
+    for (let j = 0; j <= grid.h; j++) {
+        for (let i = 0; i <= grid.w; i++) {
+            grid.corners[j][i].updatePos();
         }
     }
 
@@ -533,4 +616,10 @@ function makeRectArrayFromFunction<T>(width: number, height: number, fill: (i: n
         result.push(cur_row);
     }
     return result;
+}
+
+function clamp(value: number, a: number, b: number) {
+    if (value < a) return a;
+    if (value > b) return b;
+    return value;
 }

@@ -10459,6 +10459,8 @@ var DIRS = [
 ];
 var DI = [1, 0, -1, 0];
 var DJ = [0, 1, 0, -1];
+var DI_CORNER = [1, 0, 0, 1];
+var DJ_CORNER = [0, 0, 1, 1];
 function oppDir(dir) {
   return (2 + dir) % 4;
 }
@@ -10475,9 +10477,18 @@ var Grid = class {
   constructor(w, h) {
     this.w = w;
     this.h = h;
-    this.tiles = makeRectArrayFromFunction(w, h, (i, j) => new Tile(i, j, this));
+    this.corners = makeRectArrayFromFunction(w + 1, h + 1, (i, j) => {
+      return new Corner(
+        i,
+        j,
+        OFFSET.add(i * TILE_SIZE, j * TILE_SIZE),
+        i == 0 || j == 0 || i == w || j == h
+      );
+    });
+    this.tiles = makeRectArrayFromFunction(w, h, (i, j) => new Tile(i, j));
   }
   tiles;
+  corners;
   draw() {
     for (let j = 0; j < this.h; j++) {
       for (let i = 0; i < this.w; i++) {
@@ -10509,15 +10520,38 @@ var Grid = class {
     return new Frame(this.tiles[j][i], new import_vector2.default(pos.x % 1, pos.y % 1), 0);
   }
   frame2screen(frame) {
-    let oriented_frame = frame.clone().redir(0);
-    return OFFSET.add(oriented_frame.tile.i * TILE_SIZE, oriented_frame.tile.j * TILE_SIZE).add(oriented_frame.pos.mul(TILE_SIZE));
+    frame = frame.clone().redir(0);
+    var top = import_vector2.default.lerp(frame.tile.corner(1).pos, frame.tile.corner(0).pos, frame.pos.x);
+    var bot = import_vector2.default.lerp(frame.tile.corner(2).pos, frame.tile.corner(3).pos, frame.pos.x);
+    return import_vector2.default.lerp(top, bot, frame.pos.y);
+  }
+};
+var Corner = class {
+  constructor(i, j, pos, fixed) {
+    this.i = i;
+    this.j = j;
+    this.pos = pos;
+    this.fixed = fixed;
+  }
+  updatePos() {
+    if (this.i === 3 && this.j === 3) {
+      this.pos.copy(OFFSET.add(TILE_SIZE * 3, TILE_SIZE * 3).add(new import_vector2.default(0.5, 0.5).mulSelf(TILE_SIZE * THINGY)));
+    }
+    if (this.i === 4 && this.j === 4) {
+      this.pos.copy(OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 4).add(new import_vector2.default(-0.5, -0.5).mulSelf(TILE_SIZE * THINGY)));
+    }
+    if (this.i === 3 && this.j === 4) {
+      this.pos.copy(OFFSET.add(TILE_SIZE * 3, TILE_SIZE * 4).add(new import_vector2.default(-0.5, 0.5).mulSelf(TILE_SIZE * THINGY)));
+    }
+    if (this.i === 4 && this.j === 3) {
+      this.pos.copy(OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 3).add(new import_vector2.default(0.5, -0.5).mulSelf(TILE_SIZE * THINGY)));
+    }
   }
 };
 var Tile = class {
-  constructor(i, j, grid2, car = null) {
+  constructor(i, j, car = null) {
     this.i = i;
     this.j = j;
-    this.grid = grid2;
     this.car = car;
     this.sprite = new import_sprite.default(import_gfx.whiteTexture);
     this.sprite.static = true;
@@ -10533,7 +10567,7 @@ var Tile = class {
   adjacent(dir) {
     let ni = this.i + DI[dir];
     let nj = this.j + DJ[dir];
-    if (ni < 0 || ni >= this.grid.w || nj < 0 || nj >= this.grid.h)
+    if (ni < 0 || ni >= grid.w || nj < 0 || nj >= grid.h)
       return null;
     if (ni === 3 && nj === 3) {
       if (THINGY > 0.5) {
@@ -10566,7 +10600,21 @@ var Tile = class {
         }
       }
     }
-    return this.grid.tiles[nj][ni];
+    return grid.tiles[nj][ni];
+  }
+  corner(dir) {
+    let ni = this.i + DI_CORNER[dir];
+    let nj = this.j + DJ_CORNER[dir];
+    return grid.corners[nj][ni];
+  }
+  updateSprite() {
+    console.log();
+    this.sprite._cachedVertices = [
+      new import_gfx.Vertex(this.corner(1).pos, import_vector2.default.zero),
+      new import_gfx.Vertex(this.corner(0).pos),
+      new import_gfx.Vertex(this.corner(2).pos),
+      new import_gfx.Vertex(this.corner(3).pos, import_vector2.default.one)
+    ];
   }
   debugDrawFull(color) {
     this.sprite.color = color;
@@ -10655,6 +10703,7 @@ var Car = class {
     this.next = this.head.clone().move(0, 1);
   }
   addOffset(delta) {
+    delta = clamp(delta, -1, 1);
     this.offset += delta;
     if (this.offset > 0.1 && (this.next === null || this.next.tile.car !== null)) {
       this.offset = 0.1;
@@ -10683,32 +10732,51 @@ var Car = class {
   draw() {
     let visual_head = this.head.clone().move(0, this.offset);
     for (let k = 0; k < this.length; k++) {
-      import_shaku2.gfx.fillCircle(new import_circle.default(this.grid.frame2screen(visual_head), TILE_SIZE / 3), import_color.default.white);
+      import_shaku2.gfx.fillCircle(new import_circle.default(grid.frame2screen(visual_head), TILE_SIZE / 3), import_color.default.white);
       visual_head.move(2, 1);
     }
-  }
-  get grid() {
-    return this.head.tile.grid;
   }
 };
 var dragging = null;
 var grid = new Grid(6, 6);
+for (let j = 0; j < grid.h; j++) {
+  for (let i = 0; i < grid.w; i++) {
+    grid.tiles[j][i].updateSprite();
+  }
+}
 var cars = [
   new Car(new Frame(grid.tiles[3][2], import_vector2.default.one.mulSelf(0.5), 0), 2, import_color.default.red)
 ];
+function specialTileInUse() {
+  if (Math.abs(THINGY) <= 0.5) {
+    return grid.tiles[3][3].car !== null;
+  } else {
+    let car_top = grid.tiles[2][3].car;
+    let car_bot = grid.tiles[4][3].car;
+    let car_left = grid.tiles[3][2].car;
+    let car_right = grid.tiles[3][4].car;
+    if (THINGY > 0.5) {
+      return car_top !== null && car_right !== null && car_top === car_right || car_bot !== null && car_left !== null && car_bot === car_left;
+    } else {
+      return car_top !== null && car_left !== null && car_top === car_left || car_bot !== null && car_right !== null && car_bot === car_right;
+    }
+  }
+}
 function step() {
   import_shaku.default.startFrame();
   import_shaku.default.gfx.clear(import_shaku.default.utils.Color.cornflowerblue);
   if (dragging === null) {
-    if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.down)) {
-      THINGY = 0;
-      cars.forEach((c) => c.recalcStuff());
-    } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.right)) {
-      THINGY = 1;
-      cars.forEach((c) => c.recalcStuff());
-    } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.left)) {
-      THINGY = -1;
-      cars.forEach((c) => c.recalcStuff());
+    if (!specialTileInUse()) {
+      if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.down)) {
+        THINGY = 0;
+        cars.forEach((c) => c.recalcStuff());
+      } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.right)) {
+        THINGY = 1;
+        cars.forEach((c) => c.recalcStuff());
+      } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.left)) {
+        THINGY = -1;
+        cars.forEach((c) => c.recalcStuff());
+      }
     }
     if (import_shaku2.input.mousePressed()) {
       let grabbed_frame = grid.screen2frame(import_shaku2.input.mousePosition);
@@ -10740,6 +10808,11 @@ function step() {
       dragging.car.addOffset(import_vector2.default.dot(delta_vec, import_shaku2.input.mouseDelta) / TILE_SIZE);
     }
   }
+  for (let j = 0; j <= grid.h; j++) {
+    for (let i = 0; i <= grid.w; i++) {
+      grid.corners[j][i].updatePos();
+    }
+  }
   grid.draw();
   cars.forEach((c) => c.draw());
   import_shaku.default.endFrame();
@@ -10758,6 +10831,13 @@ function makeRectArrayFromFunction(width, height, fill) {
     result2.push(cur_row);
   }
   return result2;
+}
+function clamp(value, a, b) {
+  if (value < a)
+    return a;
+  if (value > b)
+    return b;
+  return value;
 }
 /**
  * A utility to hold gametime.
