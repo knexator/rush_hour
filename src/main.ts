@@ -34,22 +34,35 @@ let cars_texture = await Shaku.assets.loadTexture('imgs/cars.png', null);
 
 // Define game types
 
+// Side and corner indices:
+//   [2]         [3]
+//  (0,0) -[3]- (1,0)
+//    |           |
+//    |           |
+//   [2]         [0]
+//    |           |
+//    |           |
+//  (0,1) -[1]- (1,1) 
+//   [1]         [0]
+
+
+
 type direction = 0 | 1 | 2 | 3;
 
 const DIRS: Record<direction, Vector2> = [
     Vector2.right,
-    Vector2.up,
+    Vector2.down,
     Vector2.left,
-    Vector2.down
+    Vector2.up
 ];
 
 const DI: Record<direction, number> = [1, 0, -1, 0];
 const DJ: Record<direction, number> = [0, 1, 0, -1];
 
 // hacky
-// this gives the i,j of the corner in "direction + 45º"
+// this gives the i,j of the corner in "direction - 45º"
 const DI_CORNER: Record<direction, number> = [1, 0, 0, 1];
-const DJ_CORNER: Record<direction, number> = [0, 0, 1, 1];
+const DJ_CORNER: Record<direction, number> = [1, 1, 0, 0];
 
 function oppDir(dir: direction): direction {
     return ((2 + dir) % 4) as direction;
@@ -120,19 +133,28 @@ class Grid {
     }
 
     screen2frame(screen_pos: Vector2): Frame | null {
+        for (let j = 0; j < this.h; j++) {
+            for (let i = 0; i < this.w; i++) {
+                let tile = this.tiles[j][i];
+                let local_pos = tile.invBilinear(screen_pos);
+                if (local_pos === null) continue;
+                return new Frame(tile, local_pos, 0);
+            }
+        }
+        return null;
         // todo: change this for general grids
-        let pos = screen_pos.sub(OFFSET).divSelf(TILE_SIZE);
+        /*let pos = screen_pos.sub(OFFSET).divSelf(TILE_SIZE);
         let i = Math.floor(pos.x);
         let j = Math.floor(pos.y);
         if (i < 0 || i >= this.w || j < 0 || j >= this.h) return null;
-        return new Frame(this.tiles[j][i], new Vector2(pos.x % 1, pos.y % 1), 0);
+        return new Frame(this.tiles[j][i], new Vector2(pos.x % 1, pos.y % 1), 0);*/
     }
 
     frame2screen(frame: Frame): Vector2 {
         frame = frame.clone().redir(0);
-        var top = Vector2.lerp(frame.tile.corner(1).pos, frame.tile.corner(0).pos, frame.pos.x);
-        var bot = Vector2.lerp(frame.tile.corner(2).pos, frame.tile.corner(3).pos, frame.pos.x);
-        return Vector2.lerp(top, bot, frame.pos.y);
+        var y_high = Vector2.lerp(frame.tile.corner(1).pos, frame.tile.corner(0).pos, frame.pos.x);
+        var y_low = Vector2.lerp(frame.tile.corner(2).pos, frame.tile.corner(3).pos, frame.pos.x);
+        return Vector2.lerp(y_low, y_high, frame.pos.y);
     }
 }
 
@@ -251,6 +273,53 @@ class Tile {
     debugDrawFull(color: Color) {
         this.sprite.color = color;
         Shaku.gfx.drawSprite(this.sprite);
+    }
+
+    // from https://iquilezles.org/articles/ibilinear/
+    invBilinear(screen_pos: Vector2): Vector2 | null {
+        let a = this.corner(2).pos;
+        let b = this.corner(3).pos;
+        let c = this.corner(0).pos;
+        let d = this.corner(1).pos;
+
+        let e = b.sub(a);
+        let f = d.sub(a);
+        let g = a.sub(b).add(c).sub(d);
+        let h = screen_pos.sub(a);
+
+        let k2 = Vector2.cross(g, f);
+        let k1 = Vector2.cross(e, f) + Vector2.cross(h, g);
+        let k0 = Vector2.cross(h, e);
+
+        // if edges are parallel, this is a linear equation
+        if (Math.abs(k2) < 0.001) {
+            let u = (h.x * k1 + f.x * k0) / (e.x * k1 - g.x * k0);
+            let v = -k0 / k1;
+            if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0) {
+                return null;
+            }
+            return new Vector2(u, v);
+        }
+        // otherwise, it's a quadratic
+        else {
+            let w = k1 * k1 - 4.0 * k0 * k2;
+            if (w < 0.0) return null;
+            w = Math.sqrt(w);
+
+            let ik2 = 0.5 / k2;
+            let v = (-k1 - w) * ik2;
+            let u = (h.x - f.x * v) / (e.x + g.x * v);
+
+            if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0) {
+                v = (-k1 + w) * ik2;
+                u = (h.x - f.x * v) / (e.x + g.x * v);
+
+                if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0) {
+                    return null;
+                }
+            }
+            return new Vector2(u, v);
+        }
     }
 }
 
@@ -444,8 +513,8 @@ let cars = [
     new Car(new Frame(grid.tiles[1][1], Vector2.half, 2), 2, Color.magenta),
 
     new Car(new Frame(grid.tiles[1][0], Vector2.half, 1), 2, Color.orange),
-    // new Car(new Frame(grid.tiles[4][0], Vector2.half, 2), 2, Color.lightpink),
-    new Car(new Frame(grid.tiles[4][4], Vector2.half, 2), 2, Color.darkgreen),
+    new Car(new Frame(grid.tiles[4][0], Vector2.half, 2), 2, Color.lightpink),
+    // new Car(new Frame(grid.tiles[4][4], Vector2.half, 2), 2, Color.darkgreen),
     new Car(new Frame(grid.tiles[1][5], Vector2.half, 3), 2, Color.purple),
 
     new Car(new Frame(grid.tiles[5][0], Vector2.half, 2), 3, Color.gray),
@@ -479,6 +548,8 @@ function specialTileInUse(): boolean {
         }
     }
 }
+
+let debug_thing: Frame | null = null;
 
 // do a single main loop step and request the next step
 function step() {
@@ -532,8 +603,8 @@ function step() {
                 cur_mouse_frame = dragging.car.head.clone();
                 // throw new Error("how could this happen??");
             }
-            let forward = grid.frame2screen(cur_mouse_frame.clone().move(0, .05)!);
-            let backward = grid.frame2screen(cur_mouse_frame.clone().move(2, .05)!);
+            let forward = grid.frame2screen(cur_mouse_frame.clone().move(0, .05) || cur_mouse_frame);
+            let backward = grid.frame2screen(cur_mouse_frame.clone().move(2, .05) || cur_mouse_frame);
             let delta_vec = forward.sub(backward).normalizeSelf();
             dragging.car.addOffset(Vector2.dot(delta_vec, input.mouseDelta) / TILE_SIZE);
             /*if (dragging.car.head.tile === grid.tiles[3][3]) {
@@ -543,6 +614,12 @@ function step() {
             // console.log(cars[0].head);
             // dragging.car.addOffset(4 * Shaku.gameTime.delta * ((input.keyDown(KeyboardKeys.d) ? 1 : 0) - (input.keyDown(KeyboardKeys.a) ? 1 : 0)));
         }
+    }
+
+    if (input.keyPressed(KeyboardKeys.g)) {
+        // console.log(grid.screen2frame(input.mousePosition));
+        console.log(grid.tiles[0][0].invBilinear(input.mousePosition));
+        debug_thing = grid.screen2frame(input.mousePosition);
     }
 
     for (let j = 0; j <= grid.h; j++) {
@@ -555,6 +632,10 @@ function step() {
     grid.draw();
 
     cars.forEach(c => c.draw());
+
+    if (debug_thing) {
+        gfx.fillCircle(new Circle(grid.frame2screen(debug_thing), TILE_SIZE / 5), Color.black);
+    }
 
     // cars[0].offset += .1 * Shaku.gameTime.delta;
 
