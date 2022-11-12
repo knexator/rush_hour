@@ -10440,13 +10440,17 @@ var import_circle = __toESM(require_circle());
 var import_key_codes = __toESM(require_key_codes());
 var import_animator = __toESM(require_animator());
 var CONFIG = {
-  value_1: 100,
-  value_2: 0.6
+  spring: 1,
+  force: 120,
+  thingySpeed: 5,
+  friction: 5.5
 };
 var gui = new GUI$1({});
 gui.remember(CONFIG);
-gui.add(CONFIG, "value_1", 0, 200);
-gui.add(CONFIG, "value_2", -1, 1);
+gui.add(CONFIG, "spring", 0, 1);
+gui.add(CONFIG, "force", 0, 200);
+gui.add(CONFIG, "thingySpeed", 0, 50);
+gui.add(CONFIG, "friction", 0, 10);
 await import_shaku.default.init();
 document.body.appendChild(import_shaku.default.gfx.canvas);
 import_shaku.default.gfx.setResolution(800, 600, true);
@@ -10511,6 +10515,64 @@ var Grid = class {
       }
     }
   }
+  update(dt) {
+    dt = clamp(dt, 0, 0.01);
+    for (let j = 1; j < this.h; j++) {
+      for (let i = 1; i < this.w; i++) {
+        let corner = this.corners[j][i];
+        for (let d = 0; d < 4; d++) {
+          let other = this.corners[j + DJ[d]][i + DI[d]];
+          corner.force.addSelf(other.pos.sub(corner.pos).mul(CONFIG.force));
+        }
+      }
+    }
+    for (let j = 1; j < this.h; j++) {
+      for (let i = 1; i < this.w; i++) {
+        let corner = this.corners[j][i];
+        corner.update(dt);
+      }
+    }
+    if (THINGY > 0) {
+      this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], (1 - THINGY) * Math.SQRT2 * TILE_SIZE);
+      this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
+    }
+    if (THINGY < 0) {
+      this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], (1 + THINGY) * Math.SQRT2 * TILE_SIZE);
+      this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
+    }
+    if (THINGY === 0) {
+      this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
+      this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
+    }
+  }
+  suggestDistanceBetweenCorners(c1, c2, target_dist) {
+    let delta = c1.pos.sub(c2.pos);
+    let dist = delta.length;
+    if (dist === 0)
+      return;
+    let diff = (target_dist - dist) / dist;
+    if (c2.fixed) {
+      c1.force.addSelf(delta.mul(diff * CONFIG.force * 1e3));
+    } else {
+      let move = delta.mul(diff * 0.5 * CONFIG.force * 1e3);
+      c1.force.addSelf(move);
+      c2.force.subSelf(move);
+    }
+  }
+  forceDistanceBetweenCorners(c1, c2, target_dist) {
+    let delta = c1.pos.sub(c2.pos);
+    let dist = delta.length;
+    if (dist === 0)
+      return;
+    let diff = (target_dist - dist) / dist;
+    if (c2.fixed) {
+      c1.pos.addSelf(delta.mul(diff * CONFIG.spring));
+    } else {
+      let move = delta.mul(diff * 0.5 * CONFIG.spring);
+      c1.pos.addSelf(move);
+      c2.pos.subSelf(move);
+    }
+  }
   screen2frame(screen_pos) {
     for (let j = 0; j < this.h; j++) {
       for (let i = 0; i < this.w; i++) {
@@ -10536,20 +10598,16 @@ var Corner = class {
     this.j = j;
     this.pos = pos;
     this.fixed = fixed;
+    this.vel = import_vector2.default.zero;
+    this.force = import_vector2.default.zero;
   }
-  updatePos() {
-    if (this.i === 3 && this.j === 3) {
-      this.pos.copy(OFFSET.add(TILE_SIZE * 3, TILE_SIZE * 3).add(new import_vector2.default(0.5, 0.5).mulSelf(TILE_SIZE * THINGY)));
-    }
-    if (this.i === 4 && this.j === 4) {
-      this.pos.copy(OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 4).add(new import_vector2.default(-0.5, -0.5).mulSelf(TILE_SIZE * THINGY)));
-    }
-    if (this.i === 3 && this.j === 4) {
-      this.pos.copy(OFFSET.add(TILE_SIZE * 3, TILE_SIZE * 4).add(new import_vector2.default(-0.5, 0.5).mulSelf(TILE_SIZE * THINGY)));
-    }
-    if (this.i === 4 && this.j === 3) {
-      this.pos.copy(OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 3).add(new import_vector2.default(0.5, -0.5).mulSelf(TILE_SIZE * THINGY)));
-    }
+  vel;
+  force;
+  update(dt) {
+    this.vel.addSelf(this.force.mul(dt));
+    this.pos.addSelf(this.vel.mul(dt));
+    this.force.set(0, 0);
+    this.vel.mulSelf(1 / (1 + dt * CONFIG.friction));
   }
 };
 var Tile = class {
@@ -10612,7 +10670,6 @@ var Tile = class {
     return grid.corners[nj][ni];
   }
   updateSprite() {
-    console.log();
     this.sprite._cachedVertices = [
       new import_gfx.Vertex(this.corner(1).pos, import_vector2.default.zero),
       new import_gfx.Vertex(this.corner(0).pos),
@@ -10818,13 +10875,13 @@ function step() {
   if (dragging === null) {
     if (!specialTileInUse()) {
       if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.down)) {
-        THINGY = 0;
+        THINGY = moveTowards(THINGY, 0, import_shaku.default.gameTime.delta * CONFIG.thingySpeed);
         cars.forEach((c) => c.recalcStuff());
       } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.right)) {
-        THINGY = 1;
+        THINGY = moveTowards(THINGY, 1, import_shaku.default.gameTime.delta * CONFIG.thingySpeed);
         cars.forEach((c) => c.recalcStuff());
       } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.left)) {
-        THINGY = -1;
+        THINGY = moveTowards(THINGY, -1, import_shaku.default.gameTime.delta * CONFIG.thingySpeed);
         cars.forEach((c) => c.recalcStuff());
       }
     }
@@ -10866,11 +10923,7 @@ function step() {
     console.log(grid.tiles[0][0].invBilinear(import_shaku2.input.mousePosition));
     debug_thing = grid.screen2frame(import_shaku2.input.mousePosition);
   }
-  for (let j = 0; j <= grid.h; j++) {
-    for (let i = 0; i <= grid.w; i++) {
-      grid.corners[j][i].updatePos();
-    }
-  }
+  grid.update(import_shaku.default.gameTime.delta);
   grid.draw();
   cars.forEach((c) => c.draw());
   if (debug_thing) {
@@ -10899,6 +10952,15 @@ function clamp(value, a, b) {
   if (value > b)
     return b;
   return value;
+}
+function moveTowards(cur_val, target_val, max_delta) {
+  if (target_val > cur_val) {
+    return Math.min(cur_val + max_delta, target_val);
+  } else if (target_val < cur_val) {
+    return Math.max(cur_val - max_delta, target_val);
+  } else {
+    return target_val;
+  }
 }
 /**
  * A utility to hold gametime.

@@ -11,13 +11,21 @@ import { KeyboardKeys } from 'shaku/lib/input/key_codes';
 import Animator from 'shaku/lib/utils/animator';
 
 const CONFIG = {
-    value_1: 100,
-    value_2: 0.6,
+    // physics_accuracy: 5,
+    spring: 1.0,
+    force: 120.00,
+    // slack: .90,
+    thingySpeed: 5,
+    friction: 5.5,
 };
 let gui = new dat.GUI({});
 gui.remember(CONFIG);
-gui.add(CONFIG, "value_1", 0, 200);
-gui.add(CONFIG, "value_2", -1, 1);
+// gui.add(CONFIG, "physics_accuracy", 0, 20, 1);
+gui.add(CONFIG, "spring", 0, 1);
+gui.add(CONFIG, "force", 0, 200);
+// gui.add(CONFIG, "slack", 0, 1);
+gui.add(CONFIG, "thingySpeed", 0, 50);
+gui.add(CONFIG, "friction", 0, 10);
 
 // init shaku
 await Shaku.init();
@@ -132,6 +140,92 @@ class Grid {
         }
     }
 
+    update(dt: number) {
+        dt = clamp(dt, 0, .01);
+        //for (let k = 0; k < CONFIG.physics_accuracy; k++) {
+        // for each non-border corner...
+        for (let j = 1; j < this.h; j++) {
+            for (let i = 1; i < this.w; i++) {
+                let corner = this.corners[j][i];
+                // move to connected corners
+                for (let d = 0; d < 4; d++) {
+                    let other = this.corners[j + DJ[d as direction]][i + DI[d as direction]];
+                    corner.force.addSelf(other.pos.sub(corner.pos).mul(CONFIG.force));
+                    // corner.pos.addSelf(other.pos.sub(corner.pos).mul(dt * CONFIG.force));
+                    // this.forceDistanceBetweenCorners(corner, other, TILE_SIZE);
+                }
+            }
+        }
+        /*if (THINGY > 0) {
+            this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], (1 - THINGY) * Math.SQRT2 * TILE_SIZE);
+            // this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
+        }
+        if (THINGY < 0) {
+            this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], (1 + THINGY) * Math.SQRT2 * TILE_SIZE);
+            // this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
+        }*/
+        /*if (THINGY === 0) {
+            this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
+            this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
+        }*/
+        // }
+
+        for (let j = 1; j < this.h; j++) {
+            for (let i = 1; i < this.w; i++) {
+                let corner = this.corners[j][i];
+                corner.update(dt);
+            }
+        }
+
+        if (THINGY > 0) {
+            this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], (1 - THINGY) * Math.SQRT2 * TILE_SIZE);
+            this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
+        }
+        if (THINGY < 0) {
+            this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], (1 + THINGY) * Math.SQRT2 * TILE_SIZE);
+            this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
+        }
+        if (THINGY === 0) {
+            this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
+            this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
+        }
+    }
+
+    suggestDistanceBetweenCorners(c1: Corner, c2: Corner, target_dist: number) {
+        let delta = c1.pos.sub(c2.pos);
+        let dist = delta.length;
+        if (dist === 0) return;
+        let diff = (target_dist - dist) / dist;
+
+        if (c2.fixed) {
+            c1.force.addSelf(delta.mul(diff * CONFIG.force * 1000));
+        } else {
+            let move = delta.mul(diff * 0.5 * CONFIG.force * 1000);
+            c1.force.addSelf(move);
+            c2.force.subSelf(move);
+        }
+    }
+
+    forceDistanceBetweenCorners(c1: Corner, c2: Corner, target_dist: number) {
+        let delta = c1.pos.sub(c2.pos);
+        let dist = delta.length;
+        if (dist === 0) return;
+        let diff = (target_dist - dist) / dist;
+
+        /*c1.vel.set(0, 0);
+        c1.force.set(0, 0);
+        c2.vel.set(0, 0);
+        c2.force.set(0, 0);*/
+
+        if (c2.fixed) {
+            c1.pos.addSelf(delta.mul(diff * CONFIG.spring));
+        } else {
+            let move = delta.mul(diff * 0.5 * CONFIG.spring);
+            c1.pos.addSelf(move);
+            c2.pos.subSelf(move);
+        }
+    }
+
     screen2frame(screen_pos: Vector2): Frame | null {
         for (let j = 0; j < this.h; j++) {
             for (let i = 0; i < this.w; i++) {
@@ -159,14 +253,21 @@ class Grid {
 }
 
 class Corner {
+    // private prev_pos: Vector2;
+    public vel: Vector2;
+    public force: Vector2;
     constructor(
         public i: number, // todo: change this for general grids
         public j: number, // todo: change this for general grids
         public pos: Vector2,
         public fixed: boolean,
-    ) { }
+    ) {
+        // this.prev_pos = pos.clone();
+        this.vel = Vector2.zero;
+        this.force = Vector2.zero;
+    }
 
-    updatePos() {
+    /*updatePos() {
         // if (this.i !== 3 && this.i !== 4) return;
         // if (this.j !== 3 && this.j !== 4) return;
         if (this.i === 3 && this.j === 3) {
@@ -182,6 +283,13 @@ class Corner {
         if (this.i === 4 && this.j === 3) {
             this.pos.copy(OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 3).add(new Vector2(.5, -.5).mulSelf(TILE_SIZE * THINGY)));
         }
+    }*/
+
+    update(dt: number) {
+        this.vel.addSelf(this.force.mul(dt));
+        this.pos.addSelf(this.vel.mul(dt));
+        this.force.set(0, 0);
+        this.vel.mulSelf(1 / (1 + (dt * CONFIG.friction)))
     }
 }
 
@@ -257,7 +365,6 @@ class Tile {
     }
 
     updateSprite() {
-        console.log()
         this.sprite._cachedVertices = [
             // @ts-ignore
             new Vertex(this.corner(1).pos, Vector2.zero), // topLeft
@@ -520,19 +627,6 @@ let cars = [
     new Car(new Frame(grid.tiles[5][0], Vector2.half, 2), 3, Color.gray),
 ]
 
-/*let magic_sprite = new Sprite(cars_texture);
-magic_sprite.static = true;
-magic_sprite._cachedVertices = [
-    // @ts-ignore
-    new Vertex(new Vector2(100, 100), Vector2.zero), // topLeft
-    // @ts-ignore
-    new Vertex(new Vector2(400, 150)), // topRight
-    // @ts-ignore
-    new Vertex(new Vector2(200, 500)), // bottomLeft
-    // @ts-ignore
-    new Vertex(new Vector2(500, 450), Vector2.one), // bottomRight
-]*/
-
 function specialTileInUse(): boolean {
     if (Math.abs(THINGY) <= .5) {
         return grid.tiles[3][3].car !== null;
@@ -562,14 +656,13 @@ function step() {
     if (dragging === null) {
         if (!specialTileInUse()) {
             if (input.keyDown(KeyboardKeys.down)) {
-                THINGY = 0;
+                THINGY = moveTowards(THINGY, 0, Shaku.gameTime.delta * CONFIG.thingySpeed);
                 cars.forEach(c => c.recalcStuff());
-
             } else if (input.keyDown(KeyboardKeys.right)) {
-                THINGY = 1;
+                THINGY = moveTowards(THINGY, 1, Shaku.gameTime.delta * CONFIG.thingySpeed);
                 cars.forEach(c => c.recalcStuff());
             } else if (input.keyDown(KeyboardKeys.left)) {
-                THINGY = -1;
+                THINGY = moveTowards(THINGY, -1, Shaku.gameTime.delta * CONFIG.thingySpeed);
                 cars.forEach(c => c.recalcStuff());
             }
         }
@@ -622,13 +715,15 @@ function step() {
         debug_thing = grid.screen2frame(input.mousePosition);
     }
 
-    for (let j = 0; j <= grid.h; j++) {
-        for (let i = 0; i <= grid.w; i++) {
-            grid.corners[j][i].updatePos();
+    grid.update(Shaku.gameTime.delta);
+    /*if (input.keyPressed(KeyboardKeys.q)) {
+        for (let j = 0; j <= grid.h; j++) {
+            for (let i = 0; i <= grid.w; i++) {
+                grid.corners[j][i].updatePos();
+            }
         }
-    }
+    }*/
 
-    // Shaku.gfx.drawSprite(magic_sprite);
     grid.draw();
 
     cars.forEach(c => c.draw());
@@ -720,4 +815,25 @@ function clamp(value: number, a: number, b: number) {
     if (value < a) return a;
     if (value > b) return b;
     return value;
+}
+
+function moveTowards(cur_val: number, target_val: number, max_delta: number): number {
+    if (target_val > cur_val) {
+        return Math.min(cur_val + max_delta, target_val);
+    } else if (target_val < cur_val) {
+        return Math.max(cur_val - max_delta, target_val);
+    } else {
+        return target_val;
+    }
+}
+
+function moveTowardsV(cur_val: Vector2, target_val: Vector2, max_dist: number): Vector2 {
+    let delta = target_val.sub(cur_val);
+    let dist = delta.length;
+    if (dist < max_dist) {
+        // already arrived
+        return target_val.clone();
+    }
+    delta.mulSelf(max_dist / dist);
+    return cur_val.add(delta);
 }
