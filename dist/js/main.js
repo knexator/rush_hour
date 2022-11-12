@@ -10745,7 +10745,15 @@ for (let j = 0; j < grid.h; j++) {
   }
 }
 var cars = [
-  new Car(new Frame(grid.tiles[3][2], import_vector2.default.one.mulSelf(0.5), 0), 2, import_color.default.red)
+  new Car(new Frame(grid.tiles[2][1], import_vector2.default.half, 0), 2, import_color.default.red),
+  new Car(new Frame(grid.tiles[2][3], import_vector2.default.half, 1), 3, import_color.default.yellow),
+  new Car(new Frame(grid.tiles[4][3], import_vector2.default.half, 3), 2, import_color.default.lime),
+  new Car(new Frame(grid.tiles[2][2], import_vector2.default.half, 3), 3, import_color.default.cyan),
+  new Car(new Frame(grid.tiles[1][1], import_vector2.default.half, 2), 2, import_color.default.magenta),
+  new Car(new Frame(grid.tiles[1][0], import_vector2.default.half, 1), 2, import_color.default.orange),
+  new Car(new Frame(grid.tiles[4][4], import_vector2.default.half, 2), 2, import_color.default.darkgreen),
+  new Car(new Frame(grid.tiles[1][5], import_vector2.default.half, 3), 2, import_color.default.purple),
+  new Car(new Frame(grid.tiles[5][0], import_vector2.default.half, 2), 3, import_color.default.gray)
 ];
 function specialTileInUse() {
   if (Math.abs(THINGY) <= 0.5) {
@@ -10802,6 +10810,10 @@ function step() {
       dragging = null;
     } else {
       let cur_mouse_frame = dragging.car.head.clone().move(0, dragging.car.offset + dragging.total_offset);
+      if (cur_mouse_frame === null) {
+        console.log("dragging error: ", dragging);
+        cur_mouse_frame = dragging.car.head.clone();
+      }
       let forward = grid.frame2screen(cur_mouse_frame.clone().move(0, 0.05));
       let backward = grid.frame2screen(cur_mouse_frame.clone().move(2, 0.05));
       let delta_vec = forward.sub(backward).normalizeSelf();

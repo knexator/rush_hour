@@ -433,10 +433,22 @@ for (let j = 0; j < grid.h; j++) {
     }
 }
 
+// todo: directions 1 & 3 seem swapped
+// Beatable!
 let cars = [
-    new Car(new Frame(grid.tiles[3][2], Vector2.one.mulSelf(.5), 0), 2, Color.red),
-    // new Car(new Frame(grid.tiles[2][5], Vector2.one.mulSelf(.5), 1), 2, Color.green),
-    // new Car(new Frame(grid.tiles[5][3], Vector2.one.mulSelf(.5), 2), 3, Color.yellow),
+    new Car(new Frame(grid.tiles[2][1], Vector2.half, 0), 2, Color.red),
+    new Car(new Frame(grid.tiles[2][3], Vector2.half, 1), 3, Color.yellow),
+    new Car(new Frame(grid.tiles[4][3], Vector2.half, 3), 2, Color.lime),
+
+    new Car(new Frame(grid.tiles[2][2], Vector2.half, 3), 3, Color.cyan),
+    new Car(new Frame(grid.tiles[1][1], Vector2.half, 2), 2, Color.magenta),
+
+    new Car(new Frame(grid.tiles[1][0], Vector2.half, 1), 2, Color.orange),
+    // new Car(new Frame(grid.tiles[4][0], Vector2.half, 2), 2, Color.lightpink),
+    new Car(new Frame(grid.tiles[4][4], Vector2.half, 2), 2, Color.darkgreen),
+    new Car(new Frame(grid.tiles[1][5], Vector2.half, 3), 2, Color.purple),
+
+    new Car(new Frame(grid.tiles[5][0], Vector2.half, 2), 3, Color.gray),
 ]
 
 /*let magic_sprite = new Sprite(cars_texture);
@@ -514,7 +526,12 @@ function step() {
             new Animator(dragging.car).to({ "offset": 0 }).duration(.1).play();
             dragging = null;
         } else {
-            let cur_mouse_frame = dragging.car.head.clone().move(0, dragging.car.offset + dragging.total_offset)!;
+            let cur_mouse_frame = dragging.car.head.clone().move(0, dragging.car.offset + dragging.total_offset);
+            if (cur_mouse_frame === null) {
+                console.log("dragging error: ", dragging);
+                cur_mouse_frame = dragging.car.head.clone();
+                // throw new Error("how could this happen??");
+            }
             let forward = grid.frame2screen(cur_mouse_frame.clone().move(0, .05)!);
             let backward = grid.frame2screen(cur_mouse_frame.clone().move(2, .05)!);
             let delta_vec = forward.sub(backward).normalizeSelf();
