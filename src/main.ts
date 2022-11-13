@@ -16,7 +16,7 @@ const CONFIG = {
     force: 90.00,
     thingySpeed: 5,
     friction: 5.5,
-    margin: .1,
+    margin: 2 * 3 / 50, // 2 * empty pixels / texture tile size
 };
 let gui = new dat.GUI({});
 gui.remember(CONFIG);
@@ -494,7 +494,7 @@ class Frame {
         return this;
     }
 
-    private rotccw(): Frame {
+    rotccw(): Frame {
         this.dir = (this.dir + 1) % 4 as direction;
         this.pos.set(
             this.pos.y,
@@ -561,12 +561,13 @@ class Car {
     private next: Frame | null;
     private prev: Frame | null;
 
+    public texture_i: number;
+    public texture_j: number;
+
     constructor(
         /** Car extends from head to head.left */
         public head: Frame,
         public length: number,
-        public texture_i: number,
-        public texture_j: number,
     ) {
         this.offset = 0;
 
@@ -579,6 +580,12 @@ class Car {
         this.tail = cur_head.clone();
         this.prev = cur_head.move(2, 1.0);
         this.next = head.clone().move(0, 1.0);
+
+        this.texture_i = 0;
+        this.texture_j = 0;
+        if (this.length === 3) {
+            this.texture_j = 3;
+        }
     }
 
     recalcStuff() {
@@ -685,19 +692,19 @@ for (let j = 0; j < grid.h; j++) {
 // Beatable!
 let cars = [
 
-    new Car(new Frame(grid.tiles[2][1], Vector2.half, 0), 2, 0, 0),
-    new Car(new Frame(grid.tiles[2][3], Vector2.half, 1), 3, 0, 3),
-    new Car(new Frame(grid.tiles[4][3], Vector2.half, 3), 2, 1, 0),
+    new Car(new Frame(grid.tiles[2][1], Vector2.half, 0), 2),
+    new Car(new Frame(grid.tiles[2][3], Vector2.half, 1), 3),
+    new Car(new Frame(grid.tiles[4][3], Vector2.half, 3), 2),
 
-    new Car(new Frame(grid.tiles[2][2], Vector2.half, 3), 3, 0, 3),
-    new Car(new Frame(grid.tiles[1][1], Vector2.half, 2), 2, 0, 2),
+    new Car(new Frame(grid.tiles[2][2], Vector2.half, 3), 3),
+    new Car(new Frame(grid.tiles[1][1], Vector2.half, 2), 2),
 
-    new Car(new Frame(grid.tiles[1][0], Vector2.half, 1), 2, 1, 2),
-    new Car(new Frame(grid.tiles[4][0], Vector2.half, 2), 2, 1, 3),
-    // new Car(new Frame(grid.tiles[4][4], Vector2.half, 2), 2, 1, 2),
-    new Car(new Frame(grid.tiles[1][5], Vector2.half, 3), 2, 1, 3),
+    new Car(new Frame(grid.tiles[1][0], Vector2.half, 1), 2),
+    new Car(new Frame(grid.tiles[4][0], Vector2.half, 2), 2),
+    // new Car(new Frame(grid.tiles[4][4], Vector2.half, 2), 2),
+    new Car(new Frame(grid.tiles[1][5], Vector2.half, 3), 2),
 
-    new Car(new Frame(grid.tiles[5][0], Vector2.half, 2), 3, 0, 3),
+    new Car(new Frame(grid.tiles[5][0], Vector2.half, 2), 3),
 ]
 
 function specialTileInUse(): boolean {
@@ -724,38 +731,47 @@ function step() {
     Shaku.startFrame();
     Shaku.gfx!.clear(Shaku.utils.Color.cornflowerblue);
 
-    // TODO: PUT YOUR GAME UPDATES / RENDERING HERE
+    // EDITOR
+    let mouse_frame = grid.screen2frame(input.mousePosition)
+    if (mouse_frame !== null) {
+        if (mouse_frame.tile.car !== null) {
+            // delete
+            if (input.keyPressed(KeyboardKeys.n1)) {
+                let car = mouse_frame.tile.car;
+                cars = cars.filter(x => x != car);
+                forEachTile(grid.tiles, (tile, i, j) => {
+                    if (tile.car === car) {
+                        tile.car = null;
+                    }
+                })
+            }
+        } else {
+            if (input.keyPressed(KeyboardKeys.n2) || input.keyPressed(KeyboardKeys.n3)) {
+                while (true) {
+                    console.log(mouse_frame.pos, mouse_frame.dir);
+                    if (mouse_frame.pos.x - .5 > Math.abs(mouse_frame.pos.y - .5)) {
+                        break;
+                    }
+                    mouse_frame.rotccw();
+                }
+                cars.push(new Car(new Frame(mouse_frame.tile, Vector2.half, mouse_frame.dir), input.keyPressed(KeyboardKeys.n2) ? 2 : 3));
+            }
+        }
+    }
 
     if (dragging === null) {
         let thingyGoal = Math.round(THINGY);
         let in_use = specialTileInUse();
-        if (input.keyDown(KeyboardKeys.down)) {
+        if (input.keyDown(KeyboardKeys.down) || input.keyDown(KeyboardKeys.s)) {
             thingyGoal = in_use ? moveTowards(thingyGoal, 0, .1) : 0;
-        } else if (input.keyDown(KeyboardKeys.right)) {
+        } else if (input.keyDown(KeyboardKeys.right) || input.keyDown(KeyboardKeys.d)) {
             thingyGoal = in_use ? moveTowards(thingyGoal, 1, .1) : 1;
-        } else if (input.keyDown(KeyboardKeys.left)) {
+        } else if (input.keyDown(KeyboardKeys.left) || input.keyDown(KeyboardKeys.a)) {
             thingyGoal = in_use ? moveTowards(thingyGoal, -1, .1) : -1;
         }
         THINGY = moveTowards(THINGY, thingyGoal, Shaku.gameTime.delta * CONFIG.thingySpeed);
         cars.forEach(c => c.recalcStuff());
 
-        /*if (!specialTileInUse()) {
-            if (input.keyDown(KeyboardKeys.down)) {
-                THINGY = moveTowards(THINGY, 0, Shaku.gameTime.delta * CONFIG.thingySpeed);
-                cars.forEach(c => c.recalcStuff());
-            } else if (input.keyDown(KeyboardKeys.right)) {
-                THINGY = moveTowards(THINGY, 1, Shaku.gameTime.delta * CONFIG.thingySpeed);
-                cars.forEach(c => c.recalcStuff());
-            } else if (input.keyDown(KeyboardKeys.left)) {
-                THINGY = moveTowards(THINGY, -1, Shaku.gameTime.delta * CONFIG.thingySpeed);
-                cars.forEach(c => c.recalcStuff());
-            } else {
-                THINGY = moveTowards(THINGY, Math.round(THINGY), Shaku.gameTime.delta * CONFIG.thingySpeed * 3);
-                cars.forEach(c => c.recalcStuff());
-            }
-        } else {
-
-        }*/
         if (input.mousePressed()) {
             let grabbed_frame = grid.screen2frame(input.mousePosition);
             if (grabbed_frame !== null && grabbed_frame.tile.car !== null) {
@@ -806,23 +822,12 @@ function step() {
     }
 
     grid.update(Shaku.gameTime.delta);
-    /*if (input.keyPressed(KeyboardKeys.q)) {
-        for (let j = 0; j <= grid.h; j++) {
-            for (let i = 0; i <= grid.w; i++) {
-                grid.corners[j][i].updatePos();
-            }
-        }
-    }*/
-
     grid.draw();
-
     cars.forEach(c => c.draw());
 
     if (debug_thing) {
         gfx.fillCircle(new Circle(grid.frame2screen(debug_thing), TILE_SIZE / 5), Color.black);
     }
-
-    // cars[0].offset += .1 * Shaku.gameTime.delta;
 
     // end frame and request next step
     Shaku.endFrame();
@@ -859,6 +864,15 @@ function makeRectArrayFromFunction<T>(width: number, height: number, fill: (i: n
         result.push(cur_row);
     }
     return result;
+}
+
+function forEachTile<T>(map: T[][], func: (tile: T, i: number, j: number) => void) {
+    for (let j = 0; j < map.length; j++) {
+        let cur_row = map[j];
+        for (let i = 0; i < map[0].length; i++) {
+            func(cur_row[i], i, j);
+        }
+    }
 }
 
 function clamp(value: number, a: number, b: number) {

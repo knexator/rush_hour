@@ -10480,7 +10480,7 @@ var CONFIG = {
   force: 90,
   thingySpeed: 5,
   friction: 5.5,
-  margin: 0.1
+  margin: 2 * 3 / 50
 };
 var gui = new GUI$1({});
 gui.remember(CONFIG);
@@ -10839,11 +10839,9 @@ var Frame = class {
   }
 };
 var Car = class {
-  constructor(head, length, texture_i, texture_j) {
+  constructor(head, length) {
     this.head = head;
     this.length = length;
-    this.texture_i = texture_i;
-    this.texture_j = texture_j;
     this.offset = 0;
     let cur_head = head.clone();
     cur_head.tile.car = this;
@@ -10854,11 +10852,18 @@ var Car = class {
     this.tail = cur_head.clone();
     this.prev = cur_head.move(2, 1);
     this.next = head.clone().move(0, 1);
+    this.texture_i = 0;
+    this.texture_j = 0;
+    if (this.length === 3) {
+      this.texture_j = 3;
+    }
   }
   offset;
   tail;
   next;
   prev;
+  texture_i;
+  texture_j;
   recalcStuff() {
     let cur_head = this.head.clone();
     for (let k = 1; k < this.length; k++) {
@@ -10931,15 +10936,15 @@ for (let j = 0; j < grid.h; j++) {
   }
 }
 var cars = [
-  new Car(new Frame(grid.tiles[2][1], import_vector2.default.half, 0), 2, 0, 0),
-  new Car(new Frame(grid.tiles[2][3], import_vector2.default.half, 1), 3, 0, 3),
-  new Car(new Frame(grid.tiles[4][3], import_vector2.default.half, 3), 2, 1, 0),
-  new Car(new Frame(grid.tiles[2][2], import_vector2.default.half, 3), 3, 0, 3),
-  new Car(new Frame(grid.tiles[1][1], import_vector2.default.half, 2), 2, 0, 2),
-  new Car(new Frame(grid.tiles[1][0], import_vector2.default.half, 1), 2, 1, 2),
-  new Car(new Frame(grid.tiles[4][0], import_vector2.default.half, 2), 2, 1, 3),
-  new Car(new Frame(grid.tiles[1][5], import_vector2.default.half, 3), 2, 1, 3),
-  new Car(new Frame(grid.tiles[5][0], import_vector2.default.half, 2), 3, 0, 3)
+  new Car(new Frame(grid.tiles[2][1], import_vector2.default.half, 0), 2),
+  new Car(new Frame(grid.tiles[2][3], import_vector2.default.half, 1), 3),
+  new Car(new Frame(grid.tiles[4][3], import_vector2.default.half, 3), 2),
+  new Car(new Frame(grid.tiles[2][2], import_vector2.default.half, 3), 3),
+  new Car(new Frame(grid.tiles[1][1], import_vector2.default.half, 2), 2),
+  new Car(new Frame(grid.tiles[1][0], import_vector2.default.half, 1), 2),
+  new Car(new Frame(grid.tiles[4][0], import_vector2.default.half, 2), 2),
+  new Car(new Frame(grid.tiles[1][5], import_vector2.default.half, 3), 2),
+  new Car(new Frame(grid.tiles[5][0], import_vector2.default.half, 2), 3)
 ];
 function specialTileInUse() {
   if (Math.abs(THINGY) <= 0.5) {
@@ -10960,14 +10965,39 @@ var debug_thing = null;
 function step() {
   import_shaku.default.startFrame();
   import_shaku.default.gfx.clear(import_shaku.default.utils.Color.cornflowerblue);
+  let mouse_frame = grid.screen2frame(import_shaku2.input.mousePosition);
+  if (mouse_frame !== null) {
+    if (mouse_frame.tile.car !== null) {
+      if (import_shaku2.input.keyPressed(import_key_codes.KeyboardKeys.n1)) {
+        let car = mouse_frame.tile.car;
+        cars = cars.filter((x) => x != car);
+        forEachTile(grid.tiles, (tile, i, j) => {
+          if (tile.car === car) {
+            tile.car = null;
+          }
+        });
+      }
+    } else {
+      if (import_shaku2.input.keyPressed(import_key_codes.KeyboardKeys.n2) || import_shaku2.input.keyPressed(import_key_codes.KeyboardKeys.n3)) {
+        while (true) {
+          console.log(mouse_frame.pos, mouse_frame.dir);
+          if (mouse_frame.pos.x - 0.5 > Math.abs(mouse_frame.pos.y - 0.5)) {
+            break;
+          }
+          mouse_frame.rotccw();
+        }
+        cars.push(new Car(new Frame(mouse_frame.tile, import_vector2.default.half, mouse_frame.dir), import_shaku2.input.keyPressed(import_key_codes.KeyboardKeys.n2) ? 2 : 3));
+      }
+    }
+  }
   if (dragging === null) {
     let thingyGoal = Math.round(THINGY);
     let in_use = specialTileInUse();
-    if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.down)) {
+    if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.down) || import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.s)) {
       thingyGoal = in_use ? moveTowards(thingyGoal, 0, 0.1) : 0;
-    } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.right)) {
+    } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.right) || import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.d)) {
       thingyGoal = in_use ? moveTowards(thingyGoal, 1, 0.1) : 1;
-    } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.left)) {
+    } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.left) || import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.a)) {
       thingyGoal = in_use ? moveTowards(thingyGoal, -1, 0.1) : -1;
     }
     THINGY = moveTowards(THINGY, thingyGoal, import_shaku.default.gameTime.delta * CONFIG.thingySpeed);
@@ -11032,6 +11062,14 @@ function makeRectArrayFromFunction(width, height, fill) {
     result2.push(cur_row);
   }
   return result2;
+}
+function forEachTile(map2, func) {
+  for (let j = 0; j < map2.length; j++) {
+    let cur_row = map2[j];
+    for (let i = 0; i < map2[0].length; i++) {
+      func(cur_row[i], i, j);
+    }
+  }
 }
 function clamp(value, a, b) {
   if (value < a)
