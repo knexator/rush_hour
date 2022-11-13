@@ -1585,7 +1585,7 @@ var require_rectangle = __commonJS({
 var require_texture_filter_modes = __commonJS({
   "../Shaku/lib/gfx/texture_filter_modes.js"(exports, module) {
     "use strict";
-    var TextureFilterModes = {
+    var TextureFilterModes2 = {
       Nearest: "NEAREST",
       Linear: "LINEAR",
       NearestMipmapNearest: "NEAREST_MIPMAP_NEAREST",
@@ -1593,12 +1593,12 @@ var require_texture_filter_modes = __commonJS({
       NearestMipmapLinear: "NEAREST_MIPMAP_LINEAR",
       LinearMipmapLinear: "LINEAR_MIPMAP_LINEAR"
     };
-    Object.defineProperty(TextureFilterModes, "_values", {
-      value: new Set(Object.values(TextureFilterModes)),
+    Object.defineProperty(TextureFilterModes2, "_values", {
+      value: new Set(Object.values(TextureFilterModes2)),
       writable: false
     });
-    Object.freeze(TextureFilterModes);
-    module.exports = { TextureFilterModes };
+    Object.freeze(TextureFilterModes2);
+    module.exports = { TextureFilterModes: TextureFilterModes2 };
   }
 });
 
@@ -1625,7 +1625,7 @@ var require_texture_asset = __commonJS({
   "../Shaku/lib/assets/texture_asset.js"(exports, module) {
     "use strict";
     var Asset = require_asset();
-    var { TextureFilterMode, TextureFilterModes } = require_texture_filter_modes();
+    var { TextureFilterMode, TextureFilterModes: TextureFilterModes2 } = require_texture_filter_modes();
     var { TextureWrapMode, TextureWrapModes } = require_texture_wrap_modes();
     var Color3 = require_color();
     var Vector22 = require_vector2();
@@ -3757,11 +3757,11 @@ var require_effect = __commonJS({
     var TextureAsset = require_texture_asset();
     var Color3 = require_color();
     var Rectangle = require_rectangle();
-    var { TextureFilterMode, TextureFilterModes } = require_texture_filter_modes();
+    var { TextureFilterMode, TextureFilterModes: TextureFilterModes2 } = require_texture_filter_modes();
     var { TextureWrapMode, TextureWrapModes } = require_texture_wrap_modes();
     var Matrix = require_matrix();
     var _logger = require_logger().getLogger("gfx-effect");
-    var Effect = class {
+    var Effect2 = class {
       _build(gl) {
         let program = gl.createProgram();
         {
@@ -3914,7 +3914,7 @@ var require_effect = __commonJS({
         if (texture === this._cachedValues.texture) {
           return false;
         }
-        let uniform = this._uniformBinds[Effect.UniformBinds.MainTexture];
+        let uniform = this._uniformBinds[Effect2.UniformBinds.MainTexture];
         if (uniform) {
           this._cachedValues.texture = texture;
           let glTexture = texture.texture || texture;
@@ -3926,7 +3926,7 @@ var require_effect = __commonJS({
         return false;
       }
       setColor(color) {
-        let uniform = this._uniformBinds[Effect.UniformBinds.Color];
+        let uniform = this._uniformBinds[Effect2.UniformBinds.Color];
         if (uniform) {
           if (color.equals(this._cachedValues.color)) {
             return;
@@ -3949,17 +3949,17 @@ var require_effect = __commonJS({
         if (!sourceRect) {
           sourceRect = new Rectangle(0, 0, texture.width, texture.height);
         }
-        let uvOffset = this._uniformBinds[Effect.UniformBinds.UvOffset];
+        let uvOffset = this._uniformBinds[Effect2.UniformBinds.UvOffset];
         if (uvOffset) {
           this.uniforms[uvOffset](sourceRect.x / texture.width, sourceRect.y / texture.height);
         }
-        let uvScale = this._uniformBinds[Effect.UniformBinds.UvScale];
+        let uvScale = this._uniformBinds[Effect2.UniformBinds.UvScale];
         if (uvScale) {
           this.uniforms[uvScale](sourceRect.width / texture.width, sourceRect.height / texture.height);
         }
       }
       setProjectionMatrix(matrix) {
-        let uniform = this._uniformBinds[Effect.UniformBinds.Projection];
+        let uniform = this._uniformBinds[Effect2.UniformBinds.Projection];
         if (uniform) {
           if (matrix.equals(this._cachedValues.projection)) {
             return;
@@ -3969,13 +3969,13 @@ var require_effect = __commonJS({
         }
       }
       setWorldMatrix(matrix) {
-        let uniform = this._uniformBinds[Effect.UniformBinds.World];
+        let uniform = this._uniformBinds[Effect2.UniformBinds.World];
         if (uniform) {
           this.uniforms[uniform](matrix.values);
         }
       }
       setPositionsAttribute(buffer) {
-        let attr = this._attributeBinds[Effect.AttributeBinds.Position];
+        let attr = this._attributeBinds[Effect2.AttributeBinds.Position];
         if (attr) {
           if (buffer === this._cachedValues.positions) {
             return;
@@ -3985,7 +3985,7 @@ var require_effect = __commonJS({
         }
       }
       setTextureCoordsAttribute(buffer) {
-        let attr = this._attributeBinds[Effect.AttributeBinds.TextureCoords];
+        let attr = this._attributeBinds[Effect2.AttributeBinds.TextureCoords];
         if (attr) {
           if (buffer === this._cachedValues.coords) {
             return;
@@ -3995,7 +3995,7 @@ var require_effect = __commonJS({
         }
       }
       setColorsAttribute(buffer) {
-        let attr = this._attributeBinds[Effect.AttributeBinds.Colors];
+        let attr = this._attributeBinds[Effect2.AttributeBinds.Colors];
         if (attr) {
           if (buffer === this._cachedValues.colors) {
             return;
@@ -4042,8 +4042,8 @@ var require_effect = __commonJS({
       writable: false
     });
     Object.freeze(UniformTypes);
-    Effect.UniformTypes = UniformTypes;
-    Effect.UniformBinds = {
+    Effect2.UniformTypes = UniformTypes;
+    Effect2.UniformBinds = {
       MainTexture: "texture",
       Color: "color",
       Projection: "projection",
@@ -4051,8 +4051,8 @@ var require_effect = __commonJS({
       UvOffset: "uvOffset",
       UvScale: "uvScale"
     };
-    Object.freeze(Effect.UniformBinds);
-    Effect.AttributeTypes = {
+    Object.freeze(Effect2.UniformBinds);
+    Effect2.AttributeTypes = {
       Byte: "BYTE",
       Short: "SHORT",
       UByte: "UNSIGNED_BYTE",
@@ -4060,15 +4060,15 @@ var require_effect = __commonJS({
       Float: "FLOAT",
       HalfFloat: "HALF_FLOAT"
     };
-    Object.freeze(Effect.AttributeTypes);
-    Effect.AttributeBinds = {
+    Object.freeze(Effect2.AttributeTypes);
+    Effect2.AttributeBinds = {
       Position: "position",
       TextureCoords: "uvs",
       Colors: "colors"
     };
-    Object.freeze(Effect.AttributeBinds);
+    Object.freeze(Effect2.AttributeBinds);
     function _setTextureFilter(gl, filter) {
-      if (!TextureFilterModes._values.has(filter)) {
+      if (!TextureFilterModes2._values.has(filter)) {
         throw new Error("Invalid texture filter mode! Please pick a value from 'TextureFilterModes'.");
       }
       let glMode = gl[filter];
@@ -4088,7 +4088,7 @@ var require_effect = __commonJS({
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl[wrapX]);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl[wrapY]);
     }
-    module.exports = Effect;
+    module.exports = Effect2;
   }
 });
 
@@ -4096,7 +4096,7 @@ var require_effect = __commonJS({
 var require_basic = __commonJS({
   "../Shaku/lib/gfx/effects/basic.js"(exports, module) {
     "use strict";
-    var Effect = require_effect();
+    var Effect2 = require_effect();
     var vertexShader = `
 attribute vec3 position;
 attribute vec2 coord;
@@ -4130,7 +4130,7 @@ void main(void) {
     gl_FragColor.rgb *= gl_FragColor.a;
 }
     `;
-    var BasicEffect = class extends Effect {
+    var BasicEffect2 = class extends Effect2 {
       get vertexCode() {
         return vertexShader;
       }
@@ -4139,20 +4139,20 @@ void main(void) {
       }
       get uniformTypes() {
         return {
-          "texture": { type: Effect.UniformTypes.Texture, bind: Effect.UniformBinds.MainTexture },
-          "projection": { type: Effect.UniformTypes.Matrix, bind: Effect.UniformBinds.Projection },
-          "world": { type: Effect.UniformTypes.Matrix, bind: Effect.UniformBinds.World }
+          "texture": { type: Effect2.UniformTypes.Texture, bind: Effect2.UniformBinds.MainTexture },
+          "projection": { type: Effect2.UniformTypes.Matrix, bind: Effect2.UniformBinds.Projection },
+          "world": { type: Effect2.UniformTypes.Matrix, bind: Effect2.UniformBinds.World }
         };
       }
       get attributeTypes() {
         return {
-          "position": { size: 3, type: Effect.AttributeTypes.Float, normalize: false, bind: Effect.AttributeBinds.Position },
-          "coord": { size: 2, type: Effect.AttributeTypes.Float, normalize: false, bind: Effect.AttributeBinds.TextureCoords },
-          "color": { size: 4, type: Effect.AttributeTypes.Float, normalize: false, bind: Effect.AttributeBinds.Colors }
+          "position": { size: 3, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.Position },
+          "coord": { size: 2, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.TextureCoords },
+          "color": { size: 4, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.Colors }
         };
       }
     };
-    module.exports = BasicEffect;
+    module.exports = BasicEffect2;
   }
 });
 
@@ -4160,7 +4160,7 @@ void main(void) {
 var require_msdf_font = __commonJS({
   "../Shaku/lib/gfx/effects/msdf_font.js"(exports, module) {
     "use strict";
-    var Effect = require_effect();
+    var Effect2 = require_effect();
     var vertexShader = `#version 300 es
 in vec3 a_position;
 in vec2 a_coord;
@@ -4201,7 +4201,7 @@ void main(void) {
   vec3 color = v_color.rgb * alpha;
   FragColor = vec4(color, alpha) * v_color.a;
 }`;
-    var MsdfFontEffect = class extends Effect {
+    var MsdfFontEffect = class extends Effect2 {
       get vertexCode() {
         return vertexShader;
       }
@@ -4210,16 +4210,16 @@ void main(void) {
       }
       get uniformTypes() {
         return {
-          "u_texture": { type: Effect.UniformTypes.Texture, bind: Effect.UniformBinds.MainTexture },
-          "u_projection": { type: Effect.UniformTypes.Matrix, bind: Effect.UniformBinds.Projection },
-          "u_world": { type: Effect.UniformTypes.Matrix, bind: Effect.UniformBinds.World }
+          "u_texture": { type: Effect2.UniformTypes.Texture, bind: Effect2.UniformBinds.MainTexture },
+          "u_projection": { type: Effect2.UniformTypes.Matrix, bind: Effect2.UniformBinds.Projection },
+          "u_world": { type: Effect2.UniformTypes.Matrix, bind: Effect2.UniformBinds.World }
         };
       }
       get attributeTypes() {
         return {
-          "a_position": { size: 3, type: Effect.AttributeTypes.Float, normalize: false, bind: Effect.AttributeBinds.Position },
-          "a_coord": { size: 2, type: Effect.AttributeTypes.Float, normalize: false, bind: Effect.AttributeBinds.TextureCoords },
-          "a_color": { size: 4, type: Effect.AttributeTypes.Float, normalize: false, bind: Effect.AttributeBinds.Colors }
+          "a_position": { size: 3, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.Position },
+          "a_coord": { size: 2, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.TextureCoords },
+          "a_color": { size: 4, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.Colors }
         };
       }
     };
@@ -4814,7 +4814,7 @@ var require_msdf_font_texture_asset = __commonJS({
     var TextureAsset = require_texture_asset();
     var FontTextureAsset = require_font_texture_asset();
     var JsonAsset = require_json_asset();
-    var TextureFilterModes = require_texture_filter_modes();
+    var TextureFilterModes2 = require_texture_filter_modes();
     var MsdfFontTextureAsset = class extends FontTextureAsset {
       constructor(url) {
         super(url);
@@ -5229,9 +5229,9 @@ var require_gfx = __commonJS({
     var Color3 = require_color();
     var { BlendMode, BlendModes: BlendModes2 } = require_blend_modes();
     var Rectangle = require_rectangle();
-    var { Effect, BasicEffect, MsdfFontEffect } = require_effects();
+    var { Effect: Effect2, BasicEffect: BasicEffect2, MsdfFontEffect } = require_effects();
     var TextureAsset = require_texture_asset();
-    var { TextureFilterMode, TextureFilterModes } = require_texture_filter_modes();
+    var { TextureFilterMode, TextureFilterModes: TextureFilterModes2 } = require_texture_filter_modes();
     var { TextureWrapMode, TextureWrapModes } = require_texture_wrap_modes();
     var MeshGenerator = require_mesh_generator();
     var Matrix = require_matrix();
@@ -5264,7 +5264,7 @@ var require_gfx = __commonJS({
         this._fb = null;
         this.builtinEffects = {};
         this.meshes = {};
-        this.defaultTextureFilter = TextureFilterModes.Nearest;
+        this.defaultTextureFilter = TextureFilterModes2.Nearest;
         this.defaultTextureWrapMode = TextureWrapModes.Clamp;
         this.whiteTexture = null;
         this._renderTarget = null;
@@ -5295,10 +5295,10 @@ var require_gfx = __commonJS({
         return this._canvas;
       }
       get Effect() {
-        return Effect;
+        return Effect2;
       }
       get BasicEffect() {
-        return BasicEffect;
+        return BasicEffect2;
       }
       get MsdfFontEffect() {
         return MsdfFontEffect;
@@ -5339,7 +5339,7 @@ var require_gfx = __commonJS({
         return camera;
       }
       createEffect(type) {
-        if (!(type.prototype instanceof Effect)) {
+        if (!(type.prototype instanceof Effect2)) {
           throw new Error("'type' must be a class type that inherits from 'Effect'.");
         }
         let effect = new type();
@@ -5474,7 +5474,7 @@ var require_gfx = __commonJS({
             _logger.error("Can't get WebGL context!");
             return reject2("Failed to get WebGL context from canvas!");
           }
-          this.builtinEffects.Basic = this.createEffect(BasicEffect);
+          this.builtinEffects.Basic = this.createEffect(BasicEffect2);
           this.builtinEffects.MsdfFont = this.createEffect(MsdfFontEffect);
           TextureAsset._setWebGl(this._gl);
           this._fb = this._gl.createFramebuffer();
@@ -5928,7 +5928,7 @@ var require_gfx = __commonJS({
         return TextureWrapModes;
       }
       get TextureFilterModes() {
-        return TextureFilterModes;
+        return TextureFilterModes2;
       }
       get drawCallsCount() {
         return this._drawCallsCount;
@@ -5943,7 +5943,7 @@ var require_gfx = __commonJS({
         this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
       }
       _setTextureFilter(filter) {
-        if (!TextureFilterModes._values.has(filter)) {
+        if (!TextureFilterModes2._values.has(filter)) {
           throw new Error("Invalid texture filter mode! Please pick a value from 'TextureFilterModes'.");
         }
         let glMode = this._gl[filter];
@@ -10431,7 +10431,7 @@ var GUI$1 = GUI;
 
 // src/main.ts
 var import_shaku = __toESM(require_shaku());
-var import_gfx = __toESM(require_gfx2());
+var import_gfx2 = __toESM(require_gfx2());
 var import_color = __toESM(require_color());
 var import_vector2 = __toESM(require_vector2());
 var import_sprite = __toESM(require_sprite());
@@ -10439,11 +10439,48 @@ var import_shaku2 = __toESM(require_lib());
 var import_circle = __toESM(require_circle());
 var import_key_codes = __toESM(require_key_codes());
 var import_animator = __toESM(require_animator());
+
+// src/car_effect.ts
+var import_effect = __toESM(require_effect());
+var import_gfx = __toESM(require_gfx2());
+var CarEffect = class extends import_gfx.BasicEffect {
+  get vertexCode() {
+    return `attribute vec3 position;
+        attribute vec2 coord;
+        attribute vec4 color;
+        
+        uniform mat4 projection;
+        uniform mat4 world;
+        uniform vec2 uv_pos;
+        uniform vec2 uv_col_u;
+        uniform vec2 uv_col_v;
+        
+        varying vec2 v_texCoord;
+        varying vec4 v_color;
+        
+        void main(void) {
+            gl_Position = projection * world * vec4(position, 1.0);
+            gl_PointSize = 1.0;
+            v_texCoord = uv_pos + coord.x * uv_col_u + coord.y * uv_col_v;
+            v_color = color;
+        }`;
+  }
+  get uniformTypes() {
+    let ret = super.uniformTypes;
+    ret["uv_pos"] = { type: import_effect.default.UniformTypes.Float2 };
+    ret["uv_col_u"] = { type: import_effect.default.UniformTypes.Float2 };
+    ret["uv_col_v"] = { type: import_effect.default.UniformTypes.Float2 };
+    return ret;
+  }
+};
+
+// src/main.ts
 var CONFIG = {
   spring: 1,
-  force: 120,
+  force: 90,
   thingySpeed: 5,
-  friction: 5.5
+  friction: 5.5,
+  margin: 0.1
 };
 var gui = new GUI$1({});
 gui.remember(CONFIG);
@@ -10451,10 +10488,14 @@ gui.add(CONFIG, "spring", 0, 1);
 gui.add(CONFIG, "force", 0, 200);
 gui.add(CONFIG, "thingySpeed", 0, 50);
 gui.add(CONFIG, "friction", 0, 10);
+gui.add(CONFIG, "margin", 0, 0.5);
+gui.hide();
 await import_shaku.default.init();
 document.body.appendChild(import_shaku.default.gfx.canvas);
 import_shaku.default.gfx.setResolution(800, 600, true);
 var cars_texture = await import_shaku.default.assets.loadTexture("imgs/cars.png", null);
+cars_texture.filter = import_gfx2.TextureFilterModes.Linear;
+var car_effect = import_shaku.default.gfx.createEffect(CarEffect);
 var DIRS = [
   import_vector2.default.right,
   import_vector2.default.down,
@@ -10474,8 +10515,9 @@ function rotateDir(dir, by) {
 function localPos(pos) {
   return pos.x >= 0 && pos.x < 1 && pos.y >= 0 && pos.y < 1;
 }
-var TILE_SIZE = 50;
-var OFFSET = new import_vector2.default(100, 100);
+var RESOLUTION = 5;
+var TILE_SIZE = 80;
+var OFFSET = new import_vector2.default(20, 20);
 var THINGY = 0;
 var Grid = class {
   constructor(w, h) {
@@ -10504,14 +10546,6 @@ var Grid = class {
           this.frame2screen(new Frame(tile, import_vector2.default.down, 0)),
           this.frame2screen(new Frame(tile, import_vector2.default.zero, 0))
         ], import_color.default.black);
-      }
-    }
-    for (let j = 0; j < this.h; j++) {
-      for (let i = 0; i < this.w; i++) {
-        let tile = this.tiles[j][i];
-        if (tile.car !== null) {
-          tile.debugDrawFull(tile.car.color);
-        }
       }
     }
   }
@@ -10543,6 +10577,11 @@ var Grid = class {
     if (THINGY === 0) {
       this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
       this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
+    }
+    for (let j = 0; j < this.h; j++) {
+      for (let i = 0; i < this.w; i++) {
+        this.tiles[j][i].updateSprites();
+      }
     }
   }
   suggestDistanceBetweenCorners(c1, c2, target_dist) {
@@ -10615,17 +10654,25 @@ var Tile = class {
     this.i = i;
     this.j = j;
     this.car = car;
-    this.sprite = new import_sprite.default(import_gfx.whiteTexture);
-    this.sprite.static = true;
-    let top_left = OFFSET.add(i * TILE_SIZE, j * TILE_SIZE);
-    this.sprite._cachedVertices = [
-      new import_gfx.Vertex(top_left, import_vector2.default.zero),
-      new import_gfx.Vertex(top_left.add(TILE_SIZE, 0)),
-      new import_gfx.Vertex(top_left.add(0, TILE_SIZE)),
-      new import_gfx.Vertex(top_left.add(TILE_SIZE, TILE_SIZE), import_vector2.default.one)
-    ];
+    this.verts = makeRectArrayFromFunction(RESOLUTION + 1, RESOLUTION + 1, (i2, j2) => {
+      return import_vector2.default.zero;
+    });
+    this.sprites = makeRectArrayFromFunction(RESOLUTION, RESOLUTION, (i2, j2) => {
+      let sprite = new import_sprite.default(cars_texture);
+      sprite.static = true;
+      let uv_top_left = new import_vector2.default(i2 / RESOLUTION, j2 / RESOLUTION);
+      let uv_bottom_right = new import_vector2.default((i2 + 1) / RESOLUTION, (j2 + 1) / RESOLUTION);
+      sprite._cachedVertices = [
+        new import_gfx2.Vertex(this.verts[j2][i2], uv_top_left),
+        new import_gfx2.Vertex(this.verts[j2][i2 + 1]),
+        new import_gfx2.Vertex(this.verts[j2 + 1][i2]),
+        new import_gfx2.Vertex(this.verts[j2 + 1][i2 + 1], uv_bottom_right)
+      ];
+      return sprite;
+    });
   }
-  sprite;
+  sprites;
+  verts;
   adjacent(dir) {
     let ni = this.i + DI[dir];
     let nj = this.j + DJ[dir];
@@ -10669,17 +10716,34 @@ var Tile = class {
     let nj = this.j + DJ_CORNER[dir];
     return grid.corners[nj][ni];
   }
-  updateSprite() {
-    this.sprite._cachedVertices = [
-      new import_gfx.Vertex(this.corner(1).pos, import_vector2.default.zero),
-      new import_gfx.Vertex(this.corner(0).pos),
-      new import_gfx.Vertex(this.corner(2).pos),
-      new import_gfx.Vertex(this.corner(3).pos, import_vector2.default.one)
-    ];
+  updateSprites() {
+    let temp_frame = new Frame(this, import_vector2.default.zero, 0);
+    for (let j = 0; j <= RESOLUTION; j++) {
+      for (let i = 0; i <= RESOLUTION; i++) {
+        temp_frame.pos.set(i / RESOLUTION, j / RESOLUTION);
+        this.verts[j][i].copy(grid.frame2screen(temp_frame));
+      }
+    }
   }
   debugDrawFull(color) {
-    this.sprite.color = color;
-    import_shaku.default.gfx.drawSprite(this.sprite);
+    import_shaku.default.gfx.useEffect(car_effect);
+    car_effect.uniforms.uv_pos(1 / 300, 1 / 150);
+    car_effect.uniforms.uv_col_u(48 / 300, 0);
+    car_effect.uniforms.uv_col_v(0, 48 / 150);
+    for (let j = 0; j < RESOLUTION; j++) {
+      for (let i = 0; i < RESOLUTION; i++) {
+        import_shaku.default.gfx.drawSprite(this.sprites[j][i]);
+      }
+    }
+    import_shaku.default.gfx.useEffect(null);
+  }
+  drawSprites() {
+    for (let j = 0; j < RESOLUTION; j++) {
+      for (let i = 0; i < RESOLUTION; i++) {
+        import_shaku.default.gfx.drawSprite(this.sprites[j][i]);
+      }
+    }
+    import_shaku.default.gfx.spritesBatch.end();
   }
   invBilinear(screen_pos) {
     let a = this.corner(2).pos;
@@ -10803,11 +10867,11 @@ var Car = class {
   addOffset(delta) {
     delta = clamp(delta, -1, 1);
     this.offset += delta;
-    if (this.offset > 0.1 && (this.next === null || this.next.tile.car !== null)) {
-      this.offset = 0.1;
+    if (this.offset >= CONFIG.margin && (this.next === null || this.next.tile.car !== null)) {
+      this.offset = CONFIG.margin * 0.99;
     }
-    if (this.offset < -0.1 && (this.prev === null || this.prev.tile.car !== null)) {
-      this.offset = -0.1;
+    if (this.offset <= -CONFIG.margin && (this.prev === null || this.prev.tile.car !== null)) {
+      this.offset = -CONFIG.margin * 0.99;
     }
     if (this.offset >= 0.5) {
       this.offset -= 1;
@@ -10833,25 +10897,37 @@ var Car = class {
       import_shaku2.gfx.fillCircle(new import_circle.default(grid.frame2screen(visual_head), TILE_SIZE / 3), import_color.default.white);
       visual_head.move(2, 1);
     }
+    import_shaku.default.gfx.useEffect(car_effect);
+    for (let k = -1; k <= this.length; k++) {
+      let cur_frame = this.head.clone().move(2, k);
+      if (cur_frame === null)
+        continue;
+      let corner = new import_vector2.default((2 - k - this.offset) * 1 / 6, 1 / 3);
+      let dir_u = new import_vector2.default(1 / 6, 0);
+      let dir_v = new import_vector2.default(0, 1 / 3);
+      for (let i = 0; i < cur_frame.dir; i++) {
+        corner.addSelf(dir_v);
+        let temp = dir_u.clone();
+        dir_u = dir_v.mul(-1);
+        dir_v = temp;
+      }
+      car_effect.uniforms.uv_pos(corner.x, corner.y);
+      car_effect.uniforms.uv_col_u(dir_u.x, dir_u.y);
+      car_effect.uniforms.uv_col_v(dir_v.x, dir_v.y);
+      cur_frame.tile.drawSprites();
+    }
+    import_shaku.default.gfx.useEffect(null);
   }
 };
 var dragging = null;
 var grid = new Grid(6, 6);
 for (let j = 0; j < grid.h; j++) {
   for (let i = 0; i < grid.w; i++) {
-    grid.tiles[j][i].updateSprite();
+    grid.tiles[j][i].updateSprites();
   }
 }
 var cars = [
-  new Car(new Frame(grid.tiles[2][1], import_vector2.default.half, 0), 2, import_color.default.red),
-  new Car(new Frame(grid.tiles[2][3], import_vector2.default.half, 1), 3, import_color.default.yellow),
-  new Car(new Frame(grid.tiles[4][3], import_vector2.default.half, 3), 2, import_color.default.lime),
-  new Car(new Frame(grid.tiles[2][2], import_vector2.default.half, 3), 3, import_color.default.cyan),
-  new Car(new Frame(grid.tiles[1][1], import_vector2.default.half, 2), 2, import_color.default.magenta),
-  new Car(new Frame(grid.tiles[1][0], import_vector2.default.half, 1), 2, import_color.default.orange),
-  new Car(new Frame(grid.tiles[4][0], import_vector2.default.half, 2), 2, import_color.default.lightpink),
-  new Car(new Frame(grid.tiles[1][5], import_vector2.default.half, 3), 2, import_color.default.purple),
-  new Car(new Frame(grid.tiles[5][0], import_vector2.default.half, 2), 3, import_color.default.gray)
+  new Car(new Frame(grid.tiles[3][2], import_vector2.default.half, 0), 2, import_color.default.red)
 ];
 function specialTileInUse() {
   if (Math.abs(THINGY) <= 0.5) {
