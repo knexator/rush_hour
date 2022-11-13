@@ -11,19 +11,15 @@ import { KeyboardKeys } from 'shaku/lib/input/key_codes';
 import Animator from 'shaku/lib/utils/animator';
 
 const CONFIG = {
-    // physics_accuracy: 5,
     spring: 1.0,
     force: 120.00,
-    // slack: .90,
     thingySpeed: 5,
     friction: 5.5,
 };
 let gui = new dat.GUI({});
 gui.remember(CONFIG);
-// gui.add(CONFIG, "physics_accuracy", 0, 20, 1);
 gui.add(CONFIG, "spring", 0, 1);
 gui.add(CONFIG, "force", 0, 200);
-// gui.add(CONFIG, "slack", 0, 1);
 gui.add(CONFIG, "thingySpeed", 0, 50);
 gui.add(CONFIG, "friction", 0, 10);
 
@@ -150,7 +146,7 @@ class Grid {
                 // move to connected corners
                 for (let d = 0; d < 4; d++) {
                     let other = this.corners[j + DJ[d as direction]][i + DI[d as direction]];
-                    corner.force.addSelf(other.pos.sub(corner.pos).mul(CONFIG.force));
+                    corner.force.addSelf(other.pos.sub(corner.pos).mul(CONFIG.force * ((1 - .5 * Math.abs(THINGY)))));
                     // corner.pos.addSelf(other.pos.sub(corner.pos).mul(dt * CONFIG.force));
                     // this.forceDistanceBetweenCorners(corner, other, TILE_SIZE);
                 }
@@ -179,11 +175,13 @@ class Grid {
 
         if (THINGY > 0) {
             this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], (1 - THINGY) * Math.SQRT2 * TILE_SIZE);
-            this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
+            this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE * (THINGY * .3 + 1));
+            // this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], 2 * TILE_SIZE);
         }
         if (THINGY < 0) {
             this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], (1 + THINGY) * Math.SQRT2 * TILE_SIZE);
-            this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
+            this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE * (-THINGY * .3 + 1));
+            // this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
         }
         if (THINGY === 0) {
             this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
@@ -654,7 +652,19 @@ function step() {
     // TODO: PUT YOUR GAME UPDATES / RENDERING HERE
 
     if (dragging === null) {
-        if (!specialTileInUse()) {
+        let thingyGoal = Math.round(THINGY);
+        let in_use = specialTileInUse();
+        if (input.keyDown(KeyboardKeys.down)) {
+            thingyGoal = in_use ? moveTowards(thingyGoal, 0, .1) : 0;
+        } else if (input.keyDown(KeyboardKeys.right)) {
+            thingyGoal = in_use ? moveTowards(thingyGoal, 1, .1) : 1;
+        } else if (input.keyDown(KeyboardKeys.left)) {
+            thingyGoal = in_use ? moveTowards(thingyGoal, -1, .1) : -1;
+        }
+        THINGY = moveTowards(THINGY, thingyGoal, Shaku.gameTime.delta * CONFIG.thingySpeed);
+        cars.forEach(c => c.recalcStuff());
+
+        /*if (!specialTileInUse()) {
             if (input.keyDown(KeyboardKeys.down)) {
                 THINGY = moveTowards(THINGY, 0, Shaku.gameTime.delta * CONFIG.thingySpeed);
                 cars.forEach(c => c.recalcStuff());
@@ -664,8 +674,13 @@ function step() {
             } else if (input.keyDown(KeyboardKeys.left)) {
                 THINGY = moveTowards(THINGY, -1, Shaku.gameTime.delta * CONFIG.thingySpeed);
                 cars.forEach(c => c.recalcStuff());
+            } else {
+                THINGY = moveTowards(THINGY, Math.round(THINGY), Shaku.gameTime.delta * CONFIG.thingySpeed * 3);
+                cars.forEach(c => c.recalcStuff());
             }
-        }
+        } else {
+
+        }*/
         if (input.mousePressed()) {
             let grabbed_frame = grid.screen2frame(input.mousePosition);
             if (grabbed_frame !== null && grabbed_frame.tile.car !== null) {

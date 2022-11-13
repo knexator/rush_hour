@@ -10522,7 +10522,7 @@ var Grid = class {
         let corner = this.corners[j][i];
         for (let d = 0; d < 4; d++) {
           let other = this.corners[j + DJ[d]][i + DI[d]];
-          corner.force.addSelf(other.pos.sub(corner.pos).mul(CONFIG.force));
+          corner.force.addSelf(other.pos.sub(corner.pos).mul(CONFIG.force * (1 - 0.5 * Math.abs(THINGY))));
         }
       }
     }
@@ -10534,11 +10534,11 @@ var Grid = class {
     }
     if (THINGY > 0) {
       this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], (1 - THINGY) * Math.SQRT2 * TILE_SIZE);
-      this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
+      this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE * (THINGY * 0.3 + 1));
     }
     if (THINGY < 0) {
       this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], (1 + THINGY) * Math.SQRT2 * TILE_SIZE);
-      this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
+      this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE * (-THINGY * 0.3 + 1));
     }
     if (THINGY === 0) {
       this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
@@ -10873,18 +10873,17 @@ function step() {
   import_shaku.default.startFrame();
   import_shaku.default.gfx.clear(import_shaku.default.utils.Color.cornflowerblue);
   if (dragging === null) {
-    if (!specialTileInUse()) {
-      if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.down)) {
-        THINGY = moveTowards(THINGY, 0, import_shaku.default.gameTime.delta * CONFIG.thingySpeed);
-        cars.forEach((c) => c.recalcStuff());
-      } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.right)) {
-        THINGY = moveTowards(THINGY, 1, import_shaku.default.gameTime.delta * CONFIG.thingySpeed);
-        cars.forEach((c) => c.recalcStuff());
-      } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.left)) {
-        THINGY = moveTowards(THINGY, -1, import_shaku.default.gameTime.delta * CONFIG.thingySpeed);
-        cars.forEach((c) => c.recalcStuff());
-      }
+    let thingyGoal = Math.round(THINGY);
+    let in_use = specialTileInUse();
+    if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.down)) {
+      thingyGoal = in_use ? moveTowards(thingyGoal, 0, 0.1) : 0;
+    } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.right)) {
+      thingyGoal = in_use ? moveTowards(thingyGoal, 1, 0.1) : 1;
+    } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.left)) {
+      thingyGoal = in_use ? moveTowards(thingyGoal, -1, 0.1) : -1;
     }
+    THINGY = moveTowards(THINGY, thingyGoal, import_shaku.default.gameTime.delta * CONFIG.thingySpeed);
+    cars.forEach((c) => c.recalcStuff());
     if (import_shaku2.input.mousePressed()) {
       let grabbed_frame = grid.screen2frame(import_shaku2.input.mousePosition);
       if (grabbed_frame !== null && grabbed_frame.tile.car !== null) {
