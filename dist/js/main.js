@@ -10515,6 +10515,9 @@ function rotateDir(dir, by) {
 function localPos(pos) {
   return pos.x >= 0 && pos.x < 1 && pos.y >= 0 && pos.y < 1;
 }
+var TEXTURE_TILE = 50;
+var N_TILES_X = 8;
+var N_TILES_Y = 4;
 var RESOLUTION = 5;
 var TILE_SIZE = 80;
 var OFFSET = new import_vector2.default(20, 20);
@@ -10546,6 +10549,11 @@ var Grid = class {
           this.frame2screen(new Frame(tile, import_vector2.default.down, 0)),
           this.frame2screen(new Frame(tile, import_vector2.default.zero, 0))
         ], import_color.default.black);
+      }
+    }
+    for (let j = 0; j < this.h; j++) {
+      for (let i = 0; i < this.w; i++) {
+        this.tiles[j][i].drawBackground();
       }
     }
   }
@@ -10725,17 +10733,12 @@ var Tile = class {
       }
     }
   }
-  debugDrawFull(color) {
+  drawBackground() {
     import_shaku.default.gfx.useEffect(car_effect);
-    car_effect.uniforms.uv_pos(1 / 300, 1 / 150);
-    car_effect.uniforms.uv_col_u(48 / 300, 0);
-    car_effect.uniforms.uv_col_v(0, 48 / 150);
-    for (let j = 0; j < RESOLUTION; j++) {
-      for (let i = 0; i < RESOLUTION; i++) {
-        import_shaku.default.gfx.drawSprite(this.sprites[j][i]);
-      }
-    }
-    import_shaku.default.gfx.useEffect(null);
+    car_effect.uniforms.uv_pos(1 / (TEXTURE_TILE * N_TILES_X), 1 / (TEXTURE_TILE * N_TILES_Y));
+    car_effect.uniforms.uv_col_u((TEXTURE_TILE - 2) / (TEXTURE_TILE * N_TILES_X), 0);
+    car_effect.uniforms.uv_col_v(0, (TEXTURE_TILE - 2) / (TEXTURE_TILE * N_TILES_Y));
+    this.drawSprites();
   }
   drawSprites() {
     for (let j = 0; j < RESOLUTION; j++) {
@@ -10822,7 +10825,7 @@ var Frame = class {
         return null;
       this.pos = new_pos.sub(DIRS[dir]);
       if (!localPos(this.pos)) {
-        throw new Error("implementation error in Frame.move");
+        console.log("implementation error in Frame.move, this should be a local pos: ", this.pos.x, this.pos.y);
       }
       while (new_tile.adjacent(rotateDir(oppDir(dir), this.dir)) !== this.tile) {
         this.dir = rotateDir(this.dir, 1);
@@ -10836,10 +10839,11 @@ var Frame = class {
   }
 };
 var Car = class {
-  constructor(head, length, color) {
+  constructor(head, length, texture_i, texture_j) {
     this.head = head;
     this.length = length;
-    this.color = color;
+    this.texture_i = texture_i;
+    this.texture_j = texture_j;
     this.offset = 0;
     let cur_head = head.clone();
     cur_head.tile.car = this;
@@ -10898,13 +10902,13 @@ var Car = class {
       visual_head.move(2, 1);
     }
     import_shaku.default.gfx.useEffect(car_effect);
-    for (let k = -1; k <= this.length; k++) {
+    for (let k = this.offset > 0 ? -1 : 0; k < (this.offset < 0 ? this.length + 1 : this.length); k++) {
       let cur_frame = this.head.clone().move(2, k);
       if (cur_frame === null)
         continue;
-      let corner = new import_vector2.default((2 - k - this.offset) * 1 / 6, 1 / 3);
-      let dir_u = new import_vector2.default(1 / 6, 0);
-      let dir_v = new import_vector2.default(0, 1 / 3);
+      let corner = new import_vector2.default((3 + this.texture_i * 3 - k - this.offset) / N_TILES_X, this.texture_j / N_TILES_Y);
+      let dir_u = new import_vector2.default(1 / N_TILES_X, 0);
+      let dir_v = new import_vector2.default(0, 1 / N_TILES_Y);
       for (let i = 0; i < cur_frame.dir; i++) {
         corner.addSelf(dir_v);
         let temp = dir_u.clone();
@@ -10927,7 +10931,15 @@ for (let j = 0; j < grid.h; j++) {
   }
 }
 var cars = [
-  new Car(new Frame(grid.tiles[3][2], import_vector2.default.half, 0), 2, import_color.default.red)
+  new Car(new Frame(grid.tiles[2][1], import_vector2.default.half, 0), 2, 0, 0),
+  new Car(new Frame(grid.tiles[2][3], import_vector2.default.half, 1), 3, 0, 3),
+  new Car(new Frame(grid.tiles[4][3], import_vector2.default.half, 3), 2, 1, 0),
+  new Car(new Frame(grid.tiles[2][2], import_vector2.default.half, 3), 3, 0, 3),
+  new Car(new Frame(grid.tiles[1][1], import_vector2.default.half, 2), 2, 0, 2),
+  new Car(new Frame(grid.tiles[1][0], import_vector2.default.half, 1), 2, 1, 2),
+  new Car(new Frame(grid.tiles[4][0], import_vector2.default.half, 2), 2, 1, 3),
+  new Car(new Frame(grid.tiles[1][5], import_vector2.default.half, 3), 2, 1, 3),
+  new Car(new Frame(grid.tiles[5][0], import_vector2.default.half, 2), 3, 0, 3)
 ];
 function specialTileInUse() {
   if (Math.abs(THINGY) <= 0.5) {

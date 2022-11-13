@@ -86,6 +86,9 @@ function localPos(pos: Vector2): boolean {
     return pos.x >= 0 && pos.x < 1 && pos.y >= 0 && pos.y < 1;
 }
 
+const TEXTURE_TILE = 50;
+const N_TILES_X = 8;
+const N_TILES_Y = 4;
 const RESOLUTION = 5;
 const TILE_SIZE = 80;
 const OFFSET = new Vector2(20, 20);
@@ -133,14 +136,11 @@ class Grid {
             }
         }
 
-        /*for (let j = 0; j < this.h; j++) {
+        for (let j = 0; j < this.h; j++) {
             for (let i = 0; i < this.w; i++) {
-                let tile = this.tiles[j][i];
-                if (tile.car !== null) {
-                    tile.debugDrawFull(tile.car.color);
-                }
+                this.tiles[j][i].drawBackground();
             }
-        }*/
+        }
     }
 
     update(dt: number) {
@@ -407,25 +407,17 @@ class Tile {
         ]*/
     }
 
-    debugDrawFull(color: Color) {
-        // this.sprite.color = color;
-        // Shaku.gfx.drawSprite(this.sprite);
+    drawBackground() {
         Shaku.gfx.useEffect(car_effect);
 
         // @ts-ignore
-        car_effect.uniforms.uv_pos(1 / 300, 1 / 150);
+        car_effect.uniforms.uv_pos(1 / (TEXTURE_TILE * N_TILES_X), 1 / (TEXTURE_TILE * N_TILES_Y));
         // @ts-ignore
-        car_effect.uniforms.uv_col_u(48 / 300, 0);
+        car_effect.uniforms.uv_col_u((TEXTURE_TILE - 2) / (TEXTURE_TILE * N_TILES_X), 0);
         // @ts-ignore
-        car_effect.uniforms.uv_col_v(0, 48 / 150);
+        car_effect.uniforms.uv_col_v(0, (TEXTURE_TILE - 2) / (TEXTURE_TILE * N_TILES_Y));
 
-        for (let j = 0; j < RESOLUTION; j++) {
-            for (let i = 0; i < RESOLUTION; i++) {
-                Shaku.gfx.drawSprite(this.sprites[j][i]);
-            }
-        }
-        // @ts-ignore
-        Shaku.gfx.useEffect(null);
+        this.drawSprites();
     }
 
     drawSprites() {
@@ -533,7 +525,8 @@ class Frame {
             // go back to a 0..1 position
             this.pos = new_pos.sub(DIRS[dir]);
             if (!localPos(this.pos)) {
-                throw new Error("implementation error in Frame.move");
+                console.log("implementation error in Frame.move, this should be a local pos: ", this.pos.x, this.pos.y);
+                // throw new Error("implementation error in Frame.move");
             }
 
             // going back should bring us back; if not, correct direction
@@ -572,7 +565,8 @@ class Car {
         /** Car extends from head to head.left */
         public head: Frame,
         public length: number,
-        public color: Color,
+        public texture_i: number,
+        public texture_j: number,
     ) {
         this.offset = 0;
 
@@ -633,13 +627,6 @@ class Car {
     }
 
     draw() {
-        /*let visual_head = this.head.clone().move(0, this.offset)!;
-        visual_head.tile.debugDrawFull(Color.blue);
-        for (let k = 1; k < this.length; k++) {
-            visual_head.move(2, 1.0);
-            visual_head.tile.debugDrawFull(Color.blue);
-        }*/
-
         let visual_head = this.head.clone().move(0, this.offset)!;
         for (let k = 0; k < this.length; k++) {
             gfx.fillCircle(new Circle(grid.frame2screen(visual_head), TILE_SIZE / 3), Color.white);
@@ -649,13 +636,13 @@ class Car {
 
         Shaku.gfx.useEffect(car_effect);
 
-        for (let k = -1; k <= this.length; k++) {
+        for (let k = this.offset > 0 ? -1 : 0; k < (this.offset < 0 ? this.length + 1 : this.length); k++) {
             let cur_frame = this.head.clone().move(2, k);
             if (cur_frame === null) continue;
 
-            let corner = new Vector2((2 - k - this.offset) * 1 / 6, 1 / 3);
-            let dir_u = new Vector2(1 / 6, 0);
-            let dir_v = new Vector2(0, 1 / 3);
+            let corner = new Vector2(((3 + this.texture_i * 3) - k - this.offset) / N_TILES_X, this.texture_j / N_TILES_Y);
+            let dir_u = new Vector2(1 / N_TILES_X, 0);
+            let dir_v = new Vector2(0, 1 / N_TILES_Y);
 
             for (let i = 0; i < cur_frame.dir; i++) {
                 corner.addSelf(dir_v);
@@ -698,21 +685,19 @@ for (let j = 0; j < grid.h; j++) {
 // Beatable!
 let cars = [
 
-    new Car(new Frame(grid.tiles[3][2], Vector2.half, 0), 2, Color.red),
+    new Car(new Frame(grid.tiles[2][1], Vector2.half, 0), 2, 0, 0),
+    new Car(new Frame(grid.tiles[2][3], Vector2.half, 1), 3, 0, 3),
+    new Car(new Frame(grid.tiles[4][3], Vector2.half, 3), 2, 1, 0),
 
-    /*new Car(new Frame(grid.tiles[2][1], Vector2.half, 0), 2, Color.red),
-    new Car(new Frame(grid.tiles[2][3], Vector2.half, 1), 3, Color.yellow),
-    new Car(new Frame(grid.tiles[4][3], Vector2.half, 3), 2, Color.lime),
+    new Car(new Frame(grid.tiles[2][2], Vector2.half, 3), 3, 0, 3),
+    new Car(new Frame(grid.tiles[1][1], Vector2.half, 2), 2, 0, 2),
 
-    new Car(new Frame(grid.tiles[2][2], Vector2.half, 3), 3, Color.cyan),
-    new Car(new Frame(grid.tiles[1][1], Vector2.half, 2), 2, Color.magenta),
+    new Car(new Frame(grid.tiles[1][0], Vector2.half, 1), 2, 1, 2),
+    new Car(new Frame(grid.tiles[4][0], Vector2.half, 2), 2, 1, 3),
+    // new Car(new Frame(grid.tiles[4][4], Vector2.half, 2), 2, 1, 2),
+    new Car(new Frame(grid.tiles[1][5], Vector2.half, 3), 2, 1, 3),
 
-    new Car(new Frame(grid.tiles[1][0], Vector2.half, 1), 2, Color.orange),
-    new Car(new Frame(grid.tiles[4][0], Vector2.half, 2), 2, Color.lightpink),
-    // new Car(new Frame(grid.tiles[4][4], Vector2.half, 2), 2, Color.darkgreen),
-    new Car(new Frame(grid.tiles[1][5], Vector2.half, 3), 2, Color.purple),
-
-    new Car(new Frame(grid.tiles[5][0], Vector2.half, 2), 3, Color.gray),*/
+    new Car(new Frame(grid.tiles[5][0], Vector2.half, 2), 3, 0, 3),
 ]
 
 function specialTileInUse(): boolean {
@@ -851,46 +836,6 @@ console.log(hola);
 
 // start main loop
 step();
-
-
-async function loadAsciiTexture(ascii: string, colors: (string | Color)[]): Promise<TextureAsset> {
-
-    let rows = ascii.trim().split("\n").map(x => x.trim())
-    console.log(rows)
-    let height = rows.length
-    let width = rows[0].length
-
-    // create render target
-    // @ts-ignore
-    let renderTarget = await Shaku.assets.createRenderTarget(null, width, height, 4);
-
-    // use render target
-    Shaku.gfx!.setRenderTarget(renderTarget, false);
-
-    for (let j = 0; j < height; j++) {
-        for (let i = 0; i < width; i++) {
-            let val = rows[j][i];
-            if (val === '.' || val === ' ') continue;
-            let n = parseInt(val);
-
-            let col = colors[n];
-            if (typeof col === 'string') {
-                col = Shaku.utils.Color.fromHex(col);
-            }
-            Shaku.gfx!.fillRect(
-                new Shaku.utils.Rectangle(i, height - j - 1, 1, 1),
-                col,
-                BlendModes.Opaque, 0
-            );
-        }
-    }
-
-    // reset render target
-    // @ts-ignore
-    Shaku.gfx!.setRenderTarget(null, false);
-
-    return renderTarget;
-}
 
 function makeRectArray<T>(width: number, height: number, fill: T): T[][] {
     let result: T[][] = [];
