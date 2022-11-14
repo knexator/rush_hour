@@ -96,6 +96,10 @@ const OFFSET = new Vector2(20, 20);
 /** between -1 & 1, the grid's deformation; 1 means (3,2) goes to (4,3) */
 let THINGY = 0;
 
+/** Special tile */
+let SI = 3;
+let SJ = 3;
+
 /** Spatial game data */
 class Grid {
     // todo: change this for general grids
@@ -159,19 +163,6 @@ class Grid {
                 }
             }
         }
-        /*if (THINGY > 0) {
-            this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], (1 - THINGY) * Math.SQRT2 * TILE_SIZE);
-            // this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
-        }
-        if (THINGY < 0) {
-            this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], (1 + THINGY) * Math.SQRT2 * TILE_SIZE);
-            // this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
-        }*/
-        /*if (THINGY === 0) {
-            this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
-            this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
-        }*/
-        // }
 
         for (let j = 1; j < this.h; j++) {
             for (let i = 1; i < this.w; i++) {
@@ -181,18 +172,16 @@ class Grid {
         }
 
         if (THINGY > 0) {
-            this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], (1 - THINGY) * Math.SQRT2 * TILE_SIZE);
-            this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE * (THINGY * .3 + 1));
-            // this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], 2 * TILE_SIZE);
+            this.forceDistanceBetweenCorners(this.corners[SJ][SI], this.corners[SJ + 1][SI + 1], (1 - THINGY) * Math.SQRT2 * TILE_SIZE);
+            this.forceDistanceBetweenCorners(this.corners[SJ + 1][SI], this.corners[SJ][SI + 1], Math.SQRT2 * TILE_SIZE * (THINGY * .3 + 1));
         }
         if (THINGY < 0) {
-            this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], (1 + THINGY) * Math.SQRT2 * TILE_SIZE);
-            this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE * (-THINGY * .3 + 1));
-            // this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
+            this.forceDistanceBetweenCorners(this.corners[SJ + 1][SI], this.corners[SJ][SI + 1], (1 + THINGY) * Math.SQRT2 * TILE_SIZE);
+            this.forceDistanceBetweenCorners(this.corners[SJ][SI], this.corners[SJ + 1][SI + 1], Math.SQRT2 * TILE_SIZE * (-THINGY * .3 + 1));
         }
         if (THINGY === 0) {
-            this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
-            this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
+            this.forceDistanceBetweenCorners(this.corners[SJ + 1][SI], this.corners[SJ][SI + 1], Math.SQRT2 * TILE_SIZE);
+            this.forceDistanceBetweenCorners(this.corners[SJ][SI], this.corners[SJ + 1][SI + 1], Math.SQRT2 * TILE_SIZE);
         }
 
         for (let j = 0; j < this.h; j++) {
@@ -343,31 +332,31 @@ class Tile {
         let nj = this.j + DJ[dir];
         if (ni < 0 || ni >= grid.w || nj < 0 || nj >= grid.h) return null;
 
-        if (ni === 3 && nj === 3) {
+        if (ni === SI && nj === SJ) {
             if (THINGY > .5) {
                 switch (this.i) {
-                    case 2:
+                    case SI - 1:
                         nj += 1;
                         break;
-                    case 4:
+                    case SI + 1:
                         nj -= 1;
                         break;
-                    case 3:
-                        ni += (this.j === 2) ? 1 : -1;
+                    case SI:
+                        ni += (this.j < SJ) ? 1 : -1;
                         break;
                     default:
                         throw new Error("bad grid");
                 }
             } else if (THINGY < -.5) {
                 switch (this.i) {
-                    case 2:
+                    case SI - 1:
                         nj -= 1;
                         break;
-                    case 4:
+                    case SI + 1:
                         nj += 1;
                         break;
-                    case 3:
-                        ni += (this.j === 2) ? -1 : 1;
+                    case SI:
+                        ni += (this.j < SJ) ? -1 : 1;
                         break;
                     default:
                         throw new Error("bad grid");
@@ -709,12 +698,12 @@ let cars = [
 
 function specialTileInUse(): boolean {
     if (Math.abs(THINGY) <= .5) {
-        return grid.tiles[3][3].car !== null;
+        return grid.tiles[SJ][SI].car !== null;
     } else {
-        let car_top = grid.tiles[2][3].car;
-        let car_bot = grid.tiles[4][3].car;
-        let car_left = grid.tiles[3][2].car;
-        let car_right = grid.tiles[3][4].car;
+        let car_top = grid.tiles[SJ - 1][SI].car;
+        let car_bot = grid.tiles[SJ + 1][SI].car;
+        let car_left = grid.tiles[SJ][SI - 1].car;
+        let car_right = grid.tiles[SJ][SI + 1].car;
         if (THINGY > .5) {
             return (car_top !== null && car_right !== null && car_top === car_right) || (car_bot !== null && car_left !== null && car_bot === car_left)
         } else {
@@ -806,12 +795,6 @@ function step() {
             let backward = grid.frame2screen(cur_mouse_frame.clone().move(2, .05) || cur_mouse_frame);
             let delta_vec = forward.sub(backward).normalizeSelf();
             dragging.car.addOffset(Vector2.dot(delta_vec, input.mouseDelta) / TILE_SIZE);
-            /*if (dragging.car.head.tile === grid.tiles[3][3]) {
-                console.log("no!");
-            }*/
-            // console.log(dragging.car.head.dir);
-            // console.log(cars[0].head);
-            // dragging.car.addOffset(4 * Shaku.gameTime.delta * ((input.keyDown(KeyboardKeys.d) ? 1 : 0) - (input.keyDown(KeyboardKeys.a) ? 1 : 0)));
         }
     }
 

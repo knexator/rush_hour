@@ -10522,6 +10522,8 @@ var RESOLUTION = 5;
 var TILE_SIZE = 80;
 var OFFSET = new import_vector2.default(20, 20);
 var THINGY = 0;
+var SI = 3;
+var SJ = 3;
 var Grid = class {
   constructor(w, h) {
     this.w = w;
@@ -10575,16 +10577,16 @@ var Grid = class {
       }
     }
     if (THINGY > 0) {
-      this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], (1 - THINGY) * Math.SQRT2 * TILE_SIZE);
-      this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE * (THINGY * 0.3 + 1));
+      this.forceDistanceBetweenCorners(this.corners[SJ][SI], this.corners[SJ + 1][SI + 1], (1 - THINGY) * Math.SQRT2 * TILE_SIZE);
+      this.forceDistanceBetweenCorners(this.corners[SJ + 1][SI], this.corners[SJ][SI + 1], Math.SQRT2 * TILE_SIZE * (THINGY * 0.3 + 1));
     }
     if (THINGY < 0) {
-      this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], (1 + THINGY) * Math.SQRT2 * TILE_SIZE);
-      this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE * (-THINGY * 0.3 + 1));
+      this.forceDistanceBetweenCorners(this.corners[SJ + 1][SI], this.corners[SJ][SI + 1], (1 + THINGY) * Math.SQRT2 * TILE_SIZE);
+      this.forceDistanceBetweenCorners(this.corners[SJ][SI], this.corners[SJ + 1][SI + 1], Math.SQRT2 * TILE_SIZE * (-THINGY * 0.3 + 1));
     }
     if (THINGY === 0) {
-      this.forceDistanceBetweenCorners(this.corners[4][3], this.corners[3][4], Math.SQRT2 * TILE_SIZE);
-      this.forceDistanceBetweenCorners(this.corners[3][3], this.corners[4][4], Math.SQRT2 * TILE_SIZE);
+      this.forceDistanceBetweenCorners(this.corners[SJ + 1][SI], this.corners[SJ][SI + 1], Math.SQRT2 * TILE_SIZE);
+      this.forceDistanceBetweenCorners(this.corners[SJ][SI], this.corners[SJ + 1][SI + 1], Math.SQRT2 * TILE_SIZE);
     }
     for (let j = 0; j < this.h; j++) {
       for (let i = 0; i < this.w; i++) {
@@ -10686,31 +10688,31 @@ var Tile = class {
     let nj = this.j + DJ[dir];
     if (ni < 0 || ni >= grid.w || nj < 0 || nj >= grid.h)
       return null;
-    if (ni === 3 && nj === 3) {
+    if (ni === SI && nj === SJ) {
       if (THINGY > 0.5) {
         switch (this.i) {
-          case 2:
+          case SI - 1:
             nj += 1;
             break;
-          case 4:
+          case SI + 1:
             nj -= 1;
             break;
-          case 3:
-            ni += this.j === 2 ? 1 : -1;
+          case SI:
+            ni += this.j < SJ ? 1 : -1;
             break;
           default:
             throw new Error("bad grid");
         }
       } else if (THINGY < -0.5) {
         switch (this.i) {
-          case 2:
+          case SI - 1:
             nj -= 1;
             break;
-          case 4:
+          case SI + 1:
             nj += 1;
             break;
-          case 3:
-            ni += this.j === 2 ? -1 : 1;
+          case SI:
+            ni += this.j < SJ ? -1 : 1;
             break;
           default:
             throw new Error("bad grid");
@@ -10948,12 +10950,12 @@ var cars = [
 ];
 function specialTileInUse() {
   if (Math.abs(THINGY) <= 0.5) {
-    return grid.tiles[3][3].car !== null;
+    return grid.tiles[SJ][SI].car !== null;
   } else {
-    let car_top = grid.tiles[2][3].car;
-    let car_bot = grid.tiles[4][3].car;
-    let car_left = grid.tiles[3][2].car;
-    let car_right = grid.tiles[3][4].car;
+    let car_top = grid.tiles[SJ - 1][SI].car;
+    let car_bot = grid.tiles[SJ + 1][SI].car;
+    let car_left = grid.tiles[SJ][SI - 1].car;
+    let car_right = grid.tiles[SJ][SI + 1].car;
     if (THINGY > 0.5) {
       return car_top !== null && car_right !== null && car_top === car_right || car_bot !== null && car_left !== null && car_bot === car_left;
     } else {
