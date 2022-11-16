@@ -10443,6 +10443,32 @@ var import_animator = __toESM(require_animator());
 // src/car_effect.ts
 var import_effect = __toESM(require_effect());
 var import_gfx = __toESM(require_gfx2());
+var TEXTURE_TILE = 120;
+var N_TILES_X = 5;
+var N_TILES_Y = 3;
+var BackgroundEffect = class extends import_gfx.BasicEffect {
+  get vertexCode() {
+    return `
+        attribute vec3 position;
+        attribute vec2 coord;
+        attribute vec4 color;
+        
+        uniform mat4 projection;
+        uniform mat4 world;
+        
+        varying vec2 v_texCoord;
+        varying vec4 v_color;
+        
+        void main(void) {
+            gl_Position = projection * world * vec4(position, 1.0);
+            gl_PointSize = 1.0;
+            // 1 pixel margin around the square
+            v_texCoord = coord * vec2(1. / 5., 1. / 3.);
+            // v_texCoord = vec2(${1 / (TEXTURE_TILE * N_TILES_X)}, ${1 / (TEXTURE_TILE * N_TILES_Y)}) + coord.x * ${(TEXTURE_TILE - 2) / (TEXTURE_TILE * N_TILES_X)} + coord.y * ${(TEXTURE_TILE - 2) / (TEXTURE_TILE * N_TILES_Y)};
+            v_color = vec4(1.0,1.0,1.0,1.0) + color*0.0;
+        }`;
+  }
+};
 var CarEffect = class extends import_gfx.BasicEffect {
   get vertexCode() {
     return `attribute vec3 position;
@@ -10465,6 +10491,39 @@ var CarEffect = class extends import_gfx.BasicEffect {
             v_color = color;
         }`;
   }
+  get fragmentCode() {
+    return `
+        #ifdef GL_ES
+            precision highp float;
+        #endif
+        uniform sampler2D texture;
+        varying vec2 v_texCoord;
+        varying vec4 v_color;
+        
+        void main(void) {
+            vec4 lookup = texture2D(texture, v_texCoord);
+            vec2 normal = lookup.xy * 2.0 - 1.0;
+            vec2 screen_normal = v_color.xy * normal.x - v_color.zw * normal.y;
+            float light = dot(screen_normal, vec2(-0.70710678118, -0.70710678118));
+            vec3 color = vec3(0.0);
+            if (light >= 0.0) {
+                // color = mix(vec3(0.416,0.753,0.741), vec3(0.62,0.906,0.843), light);
+                color = mix(vec3(0.416,0.753,0.741), vec3(0.62,0.906,0.843), smoothstep(.20, .40, light));
+            } else {
+                // color = mix(vec3(0.345,0.537,0.635), vec3(0.416,0.753,0.741), light + 1.0);
+                color = mix(vec3(0.345,0.537,0.635), vec3(0.416,0.753,0.741), smoothstep(.45, .65, light + 1.0));
+            }
+
+            gl_FragColor = vec4(color, lookup.a);
+            gl_FragColor.rgb *= lookup.a;
+
+            // gl_FragColor = vec4(v_color.xy, 0.0, 1.0);
+            // gl_FragColor = vec4(v_color.xy * normal.x + v_color.zw * normal.y, 0.0, 1.0);
+            // gl_FragColor = texture2D(texture, v_texCoord) * v_color;
+            // gl_FragColor.rgb *= gl_FragColor.a;
+            // gl_FragColor = vec4(v_color.xy * v_texCoord.xy, 0.0, 1.0);
+        }`;
+  }
   get uniformTypes() {
     let ret = super.uniformTypes;
     ret["uv_pos"] = { type: import_effect.default.UniformTypes.Float2 };
@@ -10480,7 +10539,7 @@ var CONFIG = {
   force: 90,
   thingySpeed: 5,
   friction: 5.5,
-  margin: 2 * 3 / 50
+  margin: 2 * 7 / 120
 };
 var gui = new GUI$1({});
 gui.remember(CONFIG);
@@ -10493,9 +10552,10 @@ gui.hide();
 await import_shaku.default.init();
 document.body.appendChild(import_shaku.default.gfx.canvas);
 import_shaku.default.gfx.setResolution(800, 600, true);
-var cars_texture = await import_shaku.default.assets.loadTexture("imgs/cars.png", null);
+var cars_texture = await import_shaku.default.assets.loadTexture("imgs/cars_normal.png", null);
 cars_texture.filter = import_gfx2.TextureFilterModes.Linear;
 var car_effect = import_shaku.default.gfx.createEffect(CarEffect);
+var background_effect = import_shaku.default.gfx.createEffect(BackgroundEffect);
 var DIRS = [
   import_vector2.default.right,
   import_vector2.default.down,
@@ -10515,15 +10575,12 @@ function rotateDir(dir, by) {
 function localPos(pos) {
   return pos.x >= 0 && pos.x < 1 && pos.y >= 0 && pos.y < 1;
 }
-var TEXTURE_TILE = 50;
-var N_TILES_X = 8;
-var N_TILES_Y = 4;
-var RESOLUTION = 5;
+var RESOLUTION = 3;
 var TILE_SIZE = 80;
-var OFFSET = new import_vector2.default(20, 20);
+var OFFSET = new import_vector2.default(-20, -20);
 var THINGY = 0;
-var SI = 3;
-var SJ = 3;
+var SI = 4;
+var SJ = 4;
 var Grid = class {
   constructor(w, h) {
     this.w = w;
@@ -10536,25 +10593,13 @@ var Grid = class {
         i == 0 || j == 0 || i == w || j == h
       );
     });
-    this.tiles = makeRectArrayFromFunction(w, h, (i, j) => new Tile(i, j));
+    this.tiles = makeRectArrayFromFunction(w, h, (i, j) => new Tile(i, j, i === 0 || i === w - 1 || j === 0 || j === h - 1));
   }
   tiles;
   corners;
   draw() {
-    for (let j = 0; j < this.h; j++) {
-      for (let i = 0; i < this.w; i++) {
-        let tile = this.tiles[j][i];
-        import_shaku2.gfx.drawLinesStrip([
-          this.frame2screen(new Frame(tile, import_vector2.default.zero, 0)),
-          this.frame2screen(new Frame(tile, import_vector2.default.right, 0)),
-          this.frame2screen(new Frame(tile, import_vector2.default.one, 0)),
-          this.frame2screen(new Frame(tile, import_vector2.default.down, 0)),
-          this.frame2screen(new Frame(tile, import_vector2.default.zero, 0))
-        ], import_color.default.black);
-      }
-    }
-    for (let j = 0; j < this.h; j++) {
-      for (let i = 0; i < this.w; i++) {
+    for (let j = 1; j < this.h - 1; j++) {
+      for (let i = 1; i < this.w - 1; i++) {
         this.tiles[j][i].drawBackground();
       }
     }
@@ -10594,20 +10639,6 @@ var Grid = class {
       }
     }
   }
-  suggestDistanceBetweenCorners(c1, c2, target_dist) {
-    let delta = c1.pos.sub(c2.pos);
-    let dist = delta.length;
-    if (dist === 0)
-      return;
-    let diff = (target_dist - dist) / dist;
-    if (c2.fixed) {
-      c1.force.addSelf(delta.mul(diff * CONFIG.force * 1e3));
-    } else {
-      let move = delta.mul(diff * 0.5 * CONFIG.force * 1e3);
-      c1.force.addSelf(move);
-      c2.force.subSelf(move);
-    }
-  }
   forceDistanceBetweenCorners(c1, c2, target_dist) {
     let delta = c1.pos.sub(c2.pos);
     let dist = delta.length;
@@ -10636,9 +10667,24 @@ var Grid = class {
   }
   frame2screen(frame) {
     frame = frame.clone().redir(0);
-    var y_high = import_vector2.default.lerp(frame.tile.corner(1).pos, frame.tile.corner(0).pos, frame.pos.x);
-    var y_low = import_vector2.default.lerp(frame.tile.corner(2).pos, frame.tile.corner(3).pos, frame.pos.x);
+    let y_high = import_vector2.default.lerp(frame.tile.corner(1).pos, frame.tile.corner(0).pos, frame.pos.x);
+    let y_low = import_vector2.default.lerp(frame.tile.corner(2).pos, frame.tile.corner(3).pos, frame.pos.x);
     return import_vector2.default.lerp(y_low, y_high, frame.pos.y);
+  }
+  frame2screenDirX(frame) {
+    let x_low = import_vector2.default.lerp(frame.tile.corner(rotateDir(2, frame.dir)).pos, frame.tile.corner(rotateDir(1, frame.dir)).pos, frame.pos.y);
+    let x_high = import_vector2.default.lerp(frame.tile.corner(rotateDir(3, frame.dir)).pos, frame.tile.corner(rotateDir(0, frame.dir)).pos, frame.pos.y);
+    return x_high.sub(x_low).normalizeSelf();
+  }
+  frame2screenDirY(frame) {
+    let y_low = import_vector2.default.lerp(frame.tile.corner(rotateDir(2, frame.dir)).pos, frame.tile.corner(rotateDir(3, frame.dir)).pos, frame.pos.x);
+    let y_high = import_vector2.default.lerp(frame.tile.corner(rotateDir(1, frame.dir)).pos, frame.tile.corner(rotateDir(0, frame.dir)).pos, frame.pos.x);
+    return y_high.sub(y_low).normalizeSelf();
+  }
+  frame2screenDirs(frame) {
+    let dir_x = this.frame2screenDirX(frame);
+    let dir_y = this.frame2screenDirY(frame);
+    return new import_color.default(dir_x.x, dir_x.y, dir_y.x, dir_y.y);
   }
 };
 var Corner = class {
@@ -10660,9 +10706,10 @@ var Corner = class {
   }
 };
 var Tile = class {
-  constructor(i, j, car = null) {
+  constructor(i, j, wall, car = null) {
     this.i = i;
     this.j = j;
+    this.wall = wall;
     this.car = car;
     this.verts = makeRectArrayFromFunction(RESOLUTION + 1, RESOLUTION + 1, (i2, j2) => {
       return import_vector2.default.zero;
@@ -10677,6 +10724,12 @@ var Tile = class {
         new import_gfx2.Vertex(this.verts[j2][i2 + 1]),
         new import_gfx2.Vertex(this.verts[j2 + 1][i2]),
         new import_gfx2.Vertex(this.verts[j2 + 1][i2 + 1], uv_bottom_right)
+      ];
+      sprite.color = [
+        new import_color.default(1, 0, 0, 1),
+        new import_color.default(1, 0, 0, 1),
+        new import_color.default(1, 0, 0, 1),
+        new import_color.default(1, 0, 0, 1)
       ];
       return sprite;
     });
@@ -10736,11 +10789,9 @@ var Tile = class {
     }
   }
   drawBackground() {
-    import_shaku.default.gfx.useEffect(car_effect);
-    car_effect.uniforms.uv_pos(1 / (TEXTURE_TILE * N_TILES_X), 1 / (TEXTURE_TILE * N_TILES_Y));
-    car_effect.uniforms.uv_col_u((TEXTURE_TILE - 2) / (TEXTURE_TILE * N_TILES_X), 0);
-    car_effect.uniforms.uv_col_v(0, (TEXTURE_TILE - 2) / (TEXTURE_TILE * N_TILES_Y));
+    import_shaku.default.gfx.useEffect(background_effect);
     this.drawSprites();
+    import_shaku.default.gfx.useEffect(null);
   }
   drawSprites() {
     for (let j = 0; j < RESOLUTION; j++) {
@@ -10827,7 +10878,6 @@ var Frame = class {
         return null;
       this.pos = new_pos.sub(DIRS[dir]);
       if (!localPos(this.pos)) {
-        console.log("implementation error in Frame.move, this should be a local pos: ", this.pos.x, this.pos.y);
       }
       while (new_tile.adjacent(rotateDir(oppDir(dir), this.dir)) !== this.tile) {
         this.dir = rotateDir(this.dir, 1);
@@ -10857,7 +10907,7 @@ var Car = class {
     this.texture_i = 0;
     this.texture_j = 0;
     if (this.length === 3) {
-      this.texture_j = 3;
+      this.texture_j = N_TILES_Y - 1;
     }
   }
   offset;
@@ -10878,10 +10928,10 @@ var Car = class {
   addOffset(delta) {
     delta = clamp(delta, -1, 1);
     this.offset += delta;
-    if (this.offset >= CONFIG.margin && (this.next === null || this.next.tile.car !== null)) {
+    if (this.offset >= CONFIG.margin && (this.next === null || this.next.tile.car !== null || this.next.tile.wall)) {
       this.offset = CONFIG.margin * 0.99;
     }
-    if (this.offset <= -CONFIG.margin && (this.prev === null || this.prev.tile.car !== null)) {
+    if (this.offset <= -CONFIG.margin && (this.prev === null || this.prev.tile.car !== null || this.prev.tile.wall)) {
       this.offset = -CONFIG.margin * 0.99;
     }
     if (this.offset >= 0.5) {
@@ -10903,11 +10953,6 @@ var Car = class {
     }
   }
   draw() {
-    let visual_head = this.head.clone().move(0, this.offset);
-    for (let k = 0; k < this.length; k++) {
-      import_shaku2.gfx.fillCircle(new import_circle.default(grid.frame2screen(visual_head), TILE_SIZE / 3), import_color.default.white);
-      visual_head.move(2, 1);
-    }
     import_shaku.default.gfx.useEffect(car_effect);
     for (let k = this.offset > 0 ? -1 : 0; k < (this.offset < 0 ? this.length + 1 : this.length); k++) {
       let cur_frame = this.head.clone().move(2, k);
@@ -10925,28 +10970,46 @@ var Car = class {
       car_effect.uniforms.uv_pos(corner.x, corner.y);
       car_effect.uniforms.uv_col_u(dir_u.x, dir_u.y);
       car_effect.uniforms.uv_col_v(dir_v.x, dir_v.y);
+      for (let j = 0; j < RESOLUTION; j++) {
+        for (let i = 0; i < RESOLUTION; i++) {
+          let sprite = cur_frame.tile.sprites[j][i];
+          let uv_top_left = new import_vector2.default(i / RESOLUTION, j / RESOLUTION);
+          let uv_bottom_right = new import_vector2.default((i + 1) / RESOLUTION, (j + 1) / RESOLUTION);
+          sprite.color = [
+            grid.frame2screenDirs(new Frame(cur_frame.tile, uv_top_left, cur_frame.dir)),
+            grid.frame2screenDirs(new Frame(cur_frame.tile, new import_vector2.default(uv_bottom_right.x, uv_top_left.y), cur_frame.dir)),
+            grid.frame2screenDirs(new Frame(cur_frame.tile, new import_vector2.default(uv_top_left.x, uv_bottom_right.y), cur_frame.dir)),
+            grid.frame2screenDirs(new Frame(cur_frame.tile, uv_bottom_right, cur_frame.dir))
+          ];
+        }
+      }
       cur_frame.tile.drawSprites();
     }
     import_shaku.default.gfx.useEffect(null);
   }
 };
 var dragging = null;
-var grid = new Grid(6, 6);
+var border_sprite = new import_sprite.default(import_gfx2.whiteTexture);
+border_sprite.origin.set(0, 0);
+border_sprite.size.set(6 * TILE_SIZE + CONFIG.margin * TILE_SIZE, 6 * TILE_SIZE + CONFIG.margin * TILE_SIZE);
+border_sprite.position = OFFSET.add(TILE_SIZE - CONFIG.margin * TILE_SIZE * 0.5, TILE_SIZE - CONFIG.margin * TILE_SIZE * 0.5);
+border_sprite.color = import_color.default.fromHex("#462c4b");
+var grid = new Grid(8, 8);
 for (let j = 0; j < grid.h; j++) {
   for (let i = 0; i < grid.w; i++) {
     grid.tiles[j][i].updateSprites();
   }
 }
 var cars = [
-  new Car(new Frame(grid.tiles[2][1], import_vector2.default.half, 0), 2),
-  new Car(new Frame(grid.tiles[2][3], import_vector2.default.half, 1), 3),
-  new Car(new Frame(grid.tiles[4][3], import_vector2.default.half, 3), 2),
-  new Car(new Frame(grid.tiles[2][2], import_vector2.default.half, 3), 3),
-  new Car(new Frame(grid.tiles[1][1], import_vector2.default.half, 2), 2),
-  new Car(new Frame(grid.tiles[1][0], import_vector2.default.half, 1), 2),
-  new Car(new Frame(grid.tiles[4][0], import_vector2.default.half, 2), 2),
-  new Car(new Frame(grid.tiles[1][5], import_vector2.default.half, 3), 2),
-  new Car(new Frame(grid.tiles[5][0], import_vector2.default.half, 2), 3)
+  new Car(new Frame(grid.tiles[3][2], import_vector2.default.half, 0), 2),
+  new Car(new Frame(grid.tiles[3][4], import_vector2.default.half, 1), 3),
+  new Car(new Frame(grid.tiles[5][4], import_vector2.default.half, 3), 2),
+  new Car(new Frame(grid.tiles[3][3], import_vector2.default.half, 3), 3),
+  new Car(new Frame(grid.tiles[2][2], import_vector2.default.half, 2), 2),
+  new Car(new Frame(grid.tiles[2][1], import_vector2.default.half, 1), 2),
+  new Car(new Frame(grid.tiles[5][1], import_vector2.default.half, 2), 2),
+  new Car(new Frame(grid.tiles[2][6], import_vector2.default.half, 3), 2),
+  new Car(new Frame(grid.tiles[6][1], import_vector2.default.half, 2), 3)
 ];
 function specialTileInUse() {
   if (Math.abs(THINGY) <= 0.5) {
@@ -11042,6 +11105,11 @@ function step() {
     console.log(grid.tiles[0][0].invBilinear(import_shaku2.input.mousePosition));
     debug_thing = grid.screen2frame(import_shaku2.input.mousePosition);
   }
+  if (import_shaku2.input.keyPressed(import_key_codes.KeyboardKeys.e)) {
+    console.log(mouse_frame);
+    console.log("dir X: ", grid.frame2screenDirX(mouse_frame));
+  }
+  import_shaku.default.gfx.drawSprite(border_sprite);
   grid.update(import_shaku.default.gameTime.delta);
   grid.draw();
   cars.forEach((c) => c.draw());
