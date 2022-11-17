@@ -32,9 +32,9 @@ await Shaku.init();
 
 // add shaku's canvas to document and set resolution to 800x600
 document.body.appendChild(Shaku!.gfx!.canvas);
-Shaku.gfx!.setResolution(600, 600, true);
-// Shaku.gfx!.centerCanvas();
-// Shaku.gfx!.maximizeCanvasSize(false, false);
+// Shaku.gfx!.setResolution(600, 600, true);
+Shaku.gfx!.centerCanvas();
+Shaku.gfx!.maximizeCanvasSize(false, false);
 
 // Load resources
 let cars_texture = await Shaku.assets.loadTexture('imgs/cars_normal.png', null);
@@ -91,8 +91,10 @@ function localPos(pos: Vector2): boolean {
 }
 
 const RESOLUTION = 3;
-const TILE_SIZE = 80;
-const OFFSET = new Vector2(-20, -20);
+const TILE_SIZE = 80 * Shaku.gfx.canvas.width / 600;
+const OFFSET = new Vector2(-TILE_SIZE / 4, -TILE_SIZE / 4);
+
+frame_sprite.size.mulSelf(TILE_SIZE / 80);
 
 /** between -1 & 1, the grid's deformation; 1 means (3,2) goes to (4,3) */
 let THINGY = 0;

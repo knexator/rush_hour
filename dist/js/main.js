@@ -10559,7 +10559,8 @@ gui.add(CONFIG, "margin", 0, 0.5);
 gui.hide();
 await import_shaku.default.init();
 document.body.appendChild(import_shaku.default.gfx.canvas);
-import_shaku.default.gfx.setResolution(600, 600, true);
+import_shaku.default.gfx.centerCanvas();
+import_shaku.default.gfx.maximizeCanvasSize(false, false);
 var cars_texture = await import_shaku.default.assets.loadTexture("imgs/cars_normal.png", null);
 cars_texture.filter = import_gfx2.TextureFilterModes.Linear;
 var frame_texture = await import_shaku.default.assets.loadTexture("imgs/frame.png", null);
@@ -10587,8 +10588,9 @@ function localPos(pos) {
   return pos.x >= 0 && pos.x < 1 && pos.y >= 0 && pos.y < 1;
 }
 var RESOLUTION = 3;
-var TILE_SIZE = 80;
-var OFFSET = new import_vector2.default(-20, -20);
+var TILE_SIZE = 80 * import_shaku.default.gfx.canvas.width / 600;
+var OFFSET = new import_vector2.default(-TILE_SIZE / 4, -TILE_SIZE / 4);
+frame_sprite.size.mulSelf(TILE_SIZE / 80);
 var THINGY = 0;
 var SI = 4;
 var SJ = 4;
