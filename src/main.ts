@@ -1,6 +1,6 @@
 import * as dat from 'dat.gui';
 import Shaku from "shaku/lib/shaku";
-import { BlendModes, TextureFilterModes, Vertex, whiteTexture } from "shaku/lib/gfx";
+import { BlendModes, drawSprite, TextureFilterModes, Vertex, whiteTexture } from "shaku/lib/gfx";
 import TextureAsset from "shaku/lib/assets/texture_asset";
 import Color from "shaku/lib/utils/color";
 import Vector2 from "shaku/lib/utils/vector2";
@@ -32,13 +32,16 @@ await Shaku.init();
 
 // add shaku's canvas to document and set resolution to 800x600
 document.body.appendChild(Shaku!.gfx!.canvas);
-Shaku.gfx!.setResolution(800, 600, true);
+Shaku.gfx!.setResolution(600, 600, true);
 // Shaku.gfx!.centerCanvas();
 // Shaku.gfx!.maximizeCanvasSize(false, false);
 
 // Load resources
 let cars_texture = await Shaku.assets.loadTexture('imgs/cars_normal.png', null);
 cars_texture.filter = TextureFilterModes.Linear;
+let frame_texture = await Shaku.assets.loadTexture('imgs/frame.png', null);
+frame_texture.filter = TextureFilterModes.Linear;
+let frame_sprite = new Sprite(frame_texture);
 
 let car_effect = Shaku.gfx.createEffect(CarEffect);
 let background_effect = Shaku.gfx.createEffect(BackgroundEffect);
@@ -143,14 +146,15 @@ class Grid {
                 this.tiles[j][i].drawBackground();
             }
         }
+        this.tiles[3][7].drawBackground();
     }
 
     update(dt: number) {
         dt = clamp(dt, 0, .01);
         //for (let k = 0; k < CONFIG.physics_accuracy; k++) {
         // for each non-border corner...
-        for (let j = 1; j < this.h; j++) {
-            for (let i = 1; i < this.w; i++) {
+        for (let j = 2; j < this.h - 1; j++) {
+            for (let i = 2; i < this.w - 1; i++) {
                 let corner = this.corners[j][i];
                 // move to connected corners
                 for (let d = 0; d < 4; d++) {
@@ -182,8 +186,8 @@ class Grid {
             this.forceDistanceBetweenCorners(this.corners[SJ][SI], this.corners[SJ + 1][SI + 1], Math.SQRT2 * TILE_SIZE);
         }
 
-        for (let j = 0; j < this.h; j++) {
-            for (let i = 0; i < this.w; i++) {
+        for (let j = 1; j < this.h - 1; j++) {
+            for (let i = 1; i < this.w - 1; i++) {
                 this.tiles[j][i].updateSprites();
             }
         }
@@ -555,7 +559,7 @@ class Car {
 
     private tail: Frame;
     private next: Frame | null;
-    private prev: Frame | null;
+    public prev: Frame | null;
 
     public texture_i: number;
     public texture_j: number;
@@ -564,6 +568,7 @@ class Car {
         /** Car extends from head to head.left */
         public head: Frame,
         public length: number,
+        public main: boolean = false,
     ) {
         this.offset = 0;
 
@@ -598,12 +603,19 @@ class Car {
         delta = clamp(delta, -1, 1);
         this.offset += delta;
 
+        if (ENDING && this.main) {
+            return;
+        }
+
         // Check movement legality
         if (this.offset >= CONFIG.margin && (this.next === null || this.next.tile.car !== null || this.next.tile.wall)) {
             this.offset = CONFIG.margin * .99;
         }
         if (this.offset <= -CONFIG.margin && (this.prev === null || this.prev.tile.car !== null || this.prev.tile.wall)) {
             this.offset = -CONFIG.margin * .99;
+        }
+        if (this.main && delta < 0 && this.prev === null && this.offset < -0.1) {
+            startEnding()
         }
 
         if (this.offset >= .5) {
@@ -625,7 +637,8 @@ class Car {
             this.next = this.head.clone();
             this.head.move(2, 1.0);
             this.tail = this.prev!.clone();
-            this.prev!.move(2, 1.0);
+            // this.prev!.move(2, 1.0);
+            this.prev = this.prev!.move(2, 1.0);
         }
     }
 
@@ -675,7 +688,35 @@ class Car {
                 }
             }
 
+            /*
+            if (this.main) {
+                // @ts-ignore
+                car_effect.uniforms.color_high(0.663, 0.941, 0.373);
+                // @ts-ignore
+                car_effect.uniforms.color_mid(0.373, 0.678, 0.404);
+                // @ts-ignore
+                car_effect.uniforms.color_low(0.306, 0.369, 0.369);
+            }
+            */
+            if (this.main) {
+                // @ts-ignore
+                car_effect.uniforms.color_high(0.988, 0.922, 0.714);
+                // @ts-ignore
+                car_effect.uniforms.color_mid(0.663, 0.941, 0.373);
+                // @ts-ignore
+                car_effect.uniforms.color_low(0.373, 0.678, 0.404);
+            }
+
             cur_frame.tile.drawSprites();
+
+            if (this.main) {
+                // @ts-ignore
+                car_effect.uniforms.color_high(0.62, 0.906, 0.843);
+                // @ts-ignore
+                car_effect.uniforms.color_mid(0.416, 0.753, 0.741);
+                // @ts-ignore
+                car_effect.uniforms.color_low(0.345, 0.537, 0.635);
+            }
         }
 
         // @ts-ignore
@@ -691,6 +732,8 @@ let dragging: {
     // offset: number;
 } | null = null;
 
+let background_color = Color.fromHex("#4e5e5e");
+
 let border_sprite = new Sprite(whiteTexture);
 border_sprite.origin.set(0, 0);
 border_sprite.size.set(6 * TILE_SIZE + CONFIG.margin * TILE_SIZE, 6 * TILE_SIZE + CONFIG.margin * TILE_SIZE)
@@ -703,24 +746,35 @@ for (let j = 0; j < grid.h; j++) {
         grid.tiles[j][i].updateSprites();
     }
 }
+grid.tiles[3][7].wall = false;
+
+frame_sprite.position = OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 4);
+
+let extra_sprite = new Sprite(whiteTexture);
+extra_sprite.origin.set(0, 0);
+extra_sprite.size.set(TILE_SIZE, TILE_SIZE);
+extra_sprite.position = OFFSET.add(TILE_SIZE * 7 + 1 + 2 * CONFIG.margin * TILE_SIZE, TILE_SIZE * 3);
+extra_sprite.color = Color.fromHex("#4e5e5e")
+
+let ENDING = false;
 
 // todo: directions 1 & 3 seem swapped
 // Beatable!
 let cars = [
 
-    new Car(new Frame(grid.tiles[3][2], Vector2.half, 0), 2),
+    new Car(new Frame(grid.tiles[3][2], Vector2.half, 2), 2, true),
     new Car(new Frame(grid.tiles[3][4], Vector2.half, 1), 3),
-    new Car(new Frame(grid.tiles[5][4], Vector2.half, 3), 2),
+    new Car(new Frame(grid.tiles[4][4], Vector2.half, 3), 2),
 
-    new Car(new Frame(grid.tiles[3][3], Vector2.half, 3), 3),
-    new Car(new Frame(grid.tiles[2][2], Vector2.half, 2), 2),
+    new Car(new Frame(grid.tiles[4][3], Vector2.half, 3), 3),
+    new Car(new Frame(grid.tiles[2][1], Vector2.half, 2), 2),
 
-    new Car(new Frame(grid.tiles[2][1], Vector2.half, 1), 2),
+    new Car(new Frame(grid.tiles[4][1], Vector2.half, 1), 2),
     new Car(new Frame(grid.tiles[5][1], Vector2.half, 2), 2),
     // new Car(new Frame(grid.tiles[5][5], Vector2.half, 2), 2),
-    new Car(new Frame(grid.tiles[2][6], Vector2.half, 3), 2),
+    new Car(new Frame(grid.tiles[3][6], Vector2.half, 3), 2),
 
-    new Car(new Frame(grid.tiles[6][1], Vector2.half, 2), 3),
+    new Car(new Frame(grid.tiles[6][4], Vector2.half, 2), 3),
 ]
 
 function specialTileInUse(): boolean {
@@ -741,11 +795,30 @@ function specialTileInUse(): boolean {
 
 let debug_thing: Frame | null = null;
 
+function startEnding() {
+    ENDING = true;
+    dragging = null;
+
+    for (let i = 1; i < grid.w - 1; i++) {
+        let tile = grid.tiles[3][i];
+        if (tile.car && tile.car.main) {
+            tile.car = null;
+        }
+    }
+
+    new Animator(cars[0]).to({ "offset": -1.4 }).duration(.4).play();
+
+    let thanksElement = document.getElementById("thanks")!;
+    thanksElement.style.opacity = "1";
+    thanksElement.style.marginTop = "9vw";
+    console.log("ending");
+}
+
 // do a single main loop step and request the next step
 function step() {
     // start a new frame and clear screen
     Shaku.startFrame();
-    Shaku.gfx!.clear(Shaku.utils.Color.cornflowerblue);
+    Shaku.gfx!.clear(background_color);
 
     // EDITOR
     let mouse_frame = grid.screen2frame(input.mousePosition)
@@ -809,7 +882,11 @@ function step() {
         }
     } else {
         if (input.mouseReleased()) {
-            new Animator(dragging.car).to({ "offset": 0 }).duration(.1).play();
+            if (dragging.car.main && dragging.car.prev === null) {
+                startEnding();
+            } else {
+                new Animator(dragging.car).to({ "offset": 0 }).duration(.1).play();
+            }
             dragging = null;
         } else {
             let cur_mouse_frame = dragging.car.head.clone().move(0, dragging.car.offset + dragging.total_offset);
@@ -841,6 +918,8 @@ function step() {
     grid.update(Shaku.gameTime.delta);
     grid.draw();
     cars.forEach(c => c.draw());
+    Shaku.gfx.drawSprite(frame_sprite);
+    Shaku.gfx.drawSprite(extra_sprite);
 
     if (debug_thing) {
         gfx.fillCircle(new Circle(grid.frame2screen(debug_thing), TILE_SIZE / 5), Color.black);

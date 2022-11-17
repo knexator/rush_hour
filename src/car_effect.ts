@@ -59,6 +59,11 @@ export class CarEffect extends BasicEffect {
             precision highp float;
         #endif
         uniform sampler2D texture;
+
+        uniform vec3 color_high;
+        uniform vec3 color_mid;
+        uniform vec3 color_low;
+
         varying vec2 v_texCoord;
         varying vec4 v_color;
         
@@ -70,10 +75,10 @@ export class CarEffect extends BasicEffect {
             vec3 color = vec3(0.0);
             if (light >= 0.0) {
                 // color = mix(vec3(0.416,0.753,0.741), vec3(0.62,0.906,0.843), light);
-                color = mix(vec3(0.416,0.753,0.741), vec3(0.62,0.906,0.843), smoothstep(.20, .40, light));
+                color = mix(color_mid, color_high, smoothstep(.20, .40, light));
             } else {
                 // color = mix(vec3(0.345,0.537,0.635), vec3(0.416,0.753,0.741), light + 1.0);
-                color = mix(vec3(0.345,0.537,0.635), vec3(0.416,0.753,0.741), smoothstep(.45, .65, light + 1.0));
+                color = mix(color_low, color_mid, smoothstep(.45, .65, light + 1.0));
             }
 
             gl_FragColor = vec4(color, lookup.a);
@@ -95,6 +100,12 @@ export class CarEffect extends BasicEffect {
         ret['uv_col_u'] = { type: Effect.UniformTypes.Float2 };
         // @ts-ignore
         ret['uv_col_v'] = { type: Effect.UniformTypes.Float2 };
+        // @ts-ignore
+        ret['color_high'] = { type: Effect.UniformTypes.Float3 };
+        // @ts-ignore
+        ret['color_mid'] = { type: Effect.UniformTypes.Float3 };
+        // @ts-ignore
+        ret['color_low'] = { type: Effect.UniformTypes.Float3 };
         return ret;
     }
 }

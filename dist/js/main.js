@@ -10497,6 +10497,11 @@ var CarEffect = class extends import_gfx.BasicEffect {
             precision highp float;
         #endif
         uniform sampler2D texture;
+
+        uniform vec3 color_high;
+        uniform vec3 color_mid;
+        uniform vec3 color_low;
+
         varying vec2 v_texCoord;
         varying vec4 v_color;
         
@@ -10508,10 +10513,10 @@ var CarEffect = class extends import_gfx.BasicEffect {
             vec3 color = vec3(0.0);
             if (light >= 0.0) {
                 // color = mix(vec3(0.416,0.753,0.741), vec3(0.62,0.906,0.843), light);
-                color = mix(vec3(0.416,0.753,0.741), vec3(0.62,0.906,0.843), smoothstep(.20, .40, light));
+                color = mix(color_mid, color_high, smoothstep(.20, .40, light));
             } else {
                 // color = mix(vec3(0.345,0.537,0.635), vec3(0.416,0.753,0.741), light + 1.0);
-                color = mix(vec3(0.345,0.537,0.635), vec3(0.416,0.753,0.741), smoothstep(.45, .65, light + 1.0));
+                color = mix(color_low, color_mid, smoothstep(.45, .65, light + 1.0));
             }
 
             gl_FragColor = vec4(color, lookup.a);
@@ -10529,6 +10534,9 @@ var CarEffect = class extends import_gfx.BasicEffect {
     ret["uv_pos"] = { type: import_effect.default.UniformTypes.Float2 };
     ret["uv_col_u"] = { type: import_effect.default.UniformTypes.Float2 };
     ret["uv_col_v"] = { type: import_effect.default.UniformTypes.Float2 };
+    ret["color_high"] = { type: import_effect.default.UniformTypes.Float3 };
+    ret["color_mid"] = { type: import_effect.default.UniformTypes.Float3 };
+    ret["color_low"] = { type: import_effect.default.UniformTypes.Float3 };
     return ret;
   }
 };
@@ -10551,9 +10559,12 @@ gui.add(CONFIG, "margin", 0, 0.5);
 gui.hide();
 await import_shaku.default.init();
 document.body.appendChild(import_shaku.default.gfx.canvas);
-import_shaku.default.gfx.setResolution(800, 600, true);
+import_shaku.default.gfx.setResolution(600, 600, true);
 var cars_texture = await import_shaku.default.assets.loadTexture("imgs/cars_normal.png", null);
 cars_texture.filter = import_gfx2.TextureFilterModes.Linear;
+var frame_texture = await import_shaku.default.assets.loadTexture("imgs/frame.png", null);
+frame_texture.filter = import_gfx2.TextureFilterModes.Linear;
+var frame_sprite = new import_sprite.default(frame_texture);
 var car_effect = import_shaku.default.gfx.createEffect(CarEffect);
 var background_effect = import_shaku.default.gfx.createEffect(BackgroundEffect);
 var DIRS = [
@@ -10603,11 +10614,12 @@ var Grid = class {
         this.tiles[j][i].drawBackground();
       }
     }
+    this.tiles[3][7].drawBackground();
   }
   update(dt) {
     dt = clamp(dt, 0, 0.01);
-    for (let j = 1; j < this.h; j++) {
-      for (let i = 1; i < this.w; i++) {
+    for (let j = 2; j < this.h - 1; j++) {
+      for (let i = 2; i < this.w - 1; i++) {
         let corner = this.corners[j][i];
         for (let d = 0; d < 4; d++) {
           let other = this.corners[j + DJ[d]][i + DI[d]];
@@ -10633,8 +10645,8 @@ var Grid = class {
       this.forceDistanceBetweenCorners(this.corners[SJ + 1][SI], this.corners[SJ][SI + 1], Math.SQRT2 * TILE_SIZE);
       this.forceDistanceBetweenCorners(this.corners[SJ][SI], this.corners[SJ + 1][SI + 1], Math.SQRT2 * TILE_SIZE);
     }
-    for (let j = 0; j < this.h; j++) {
-      for (let i = 0; i < this.w; i++) {
+    for (let j = 1; j < this.h - 1; j++) {
+      for (let i = 1; i < this.w - 1; i++) {
         this.tiles[j][i].updateSprites();
       }
     }
@@ -10891,9 +10903,10 @@ var Frame = class {
   }
 };
 var Car = class {
-  constructor(head, length) {
+  constructor(head, length, main = false) {
     this.head = head;
     this.length = length;
+    this.main = main;
     this.offset = 0;
     let cur_head = head.clone();
     cur_head.tile.car = this;
@@ -10928,11 +10941,17 @@ var Car = class {
   addOffset(delta) {
     delta = clamp(delta, -1, 1);
     this.offset += delta;
+    if (ENDING && this.main) {
+      return;
+    }
     if (this.offset >= CONFIG.margin && (this.next === null || this.next.tile.car !== null || this.next.tile.wall)) {
       this.offset = CONFIG.margin * 0.99;
     }
     if (this.offset <= -CONFIG.margin && (this.prev === null || this.prev.tile.car !== null || this.prev.tile.wall)) {
       this.offset = -CONFIG.margin * 0.99;
+    }
+    if (this.main && delta < 0 && this.prev === null && this.offset < -0.1) {
+      startEnding();
     }
     if (this.offset >= 0.5) {
       this.offset -= 1;
@@ -10949,7 +10968,7 @@ var Car = class {
       this.next = this.head.clone();
       this.head.move(2, 1);
       this.tail = this.prev.clone();
-      this.prev.move(2, 1);
+      this.prev = this.prev.move(2, 1);
     }
   }
   draw() {
@@ -10983,12 +11002,23 @@ var Car = class {
           ];
         }
       }
+      if (this.main) {
+        car_effect.uniforms.color_high(0.988, 0.922, 0.714);
+        car_effect.uniforms.color_mid(0.663, 0.941, 0.373);
+        car_effect.uniforms.color_low(0.373, 0.678, 0.404);
+      }
       cur_frame.tile.drawSprites();
+      if (this.main) {
+        car_effect.uniforms.color_high(0.62, 0.906, 0.843);
+        car_effect.uniforms.color_mid(0.416, 0.753, 0.741);
+        car_effect.uniforms.color_low(0.345, 0.537, 0.635);
+      }
     }
     import_shaku.default.gfx.useEffect(null);
   }
 };
 var dragging = null;
+var background_color = import_color.default.fromHex("#4e5e5e");
 var border_sprite = new import_sprite.default(import_gfx2.whiteTexture);
 border_sprite.origin.set(0, 0);
 border_sprite.size.set(6 * TILE_SIZE + CONFIG.margin * TILE_SIZE, 6 * TILE_SIZE + CONFIG.margin * TILE_SIZE);
@@ -11000,16 +11030,24 @@ for (let j = 0; j < grid.h; j++) {
     grid.tiles[j][i].updateSprites();
   }
 }
+grid.tiles[3][7].wall = false;
+frame_sprite.position = OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 4);
+var extra_sprite = new import_sprite.default(import_gfx2.whiteTexture);
+extra_sprite.origin.set(0, 0);
+extra_sprite.size.set(TILE_SIZE, TILE_SIZE);
+extra_sprite.position = OFFSET.add(TILE_SIZE * 7 + 1 + 2 * CONFIG.margin * TILE_SIZE, TILE_SIZE * 3);
+extra_sprite.color = import_color.default.fromHex("#4e5e5e");
+var ENDING = false;
 var cars = [
-  new Car(new Frame(grid.tiles[3][2], import_vector2.default.half, 0), 2),
+  new Car(new Frame(grid.tiles[3][2], import_vector2.default.half, 2), 2, true),
   new Car(new Frame(grid.tiles[3][4], import_vector2.default.half, 1), 3),
-  new Car(new Frame(grid.tiles[5][4], import_vector2.default.half, 3), 2),
-  new Car(new Frame(grid.tiles[3][3], import_vector2.default.half, 3), 3),
-  new Car(new Frame(grid.tiles[2][2], import_vector2.default.half, 2), 2),
-  new Car(new Frame(grid.tiles[2][1], import_vector2.default.half, 1), 2),
+  new Car(new Frame(grid.tiles[4][4], import_vector2.default.half, 3), 2),
+  new Car(new Frame(grid.tiles[4][3], import_vector2.default.half, 3), 3),
+  new Car(new Frame(grid.tiles[2][1], import_vector2.default.half, 2), 2),
+  new Car(new Frame(grid.tiles[4][1], import_vector2.default.half, 1), 2),
   new Car(new Frame(grid.tiles[5][1], import_vector2.default.half, 2), 2),
-  new Car(new Frame(grid.tiles[2][6], import_vector2.default.half, 3), 2),
-  new Car(new Frame(grid.tiles[6][1], import_vector2.default.half, 2), 3)
+  new Car(new Frame(grid.tiles[3][6], import_vector2.default.half, 3), 2),
+  new Car(new Frame(grid.tiles[6][4], import_vector2.default.half, 2), 3)
 ];
 function specialTileInUse() {
   if (Math.abs(THINGY) <= 0.5) {
@@ -11027,9 +11065,24 @@ function specialTileInUse() {
   }
 }
 var debug_thing = null;
+function startEnding() {
+  ENDING = true;
+  dragging = null;
+  for (let i = 1; i < grid.w - 1; i++) {
+    let tile = grid.tiles[3][i];
+    if (tile.car && tile.car.main) {
+      tile.car = null;
+    }
+  }
+  new import_animator.default(cars[0]).to({ "offset": -1.4 }).duration(0.4).play();
+  let thanksElement = document.getElementById("thanks");
+  thanksElement.style.opacity = "1";
+  thanksElement.style.marginTop = "9vw";
+  console.log("ending");
+}
 function step() {
   import_shaku.default.startFrame();
-  import_shaku.default.gfx.clear(import_shaku.default.utils.Color.cornflowerblue);
+  import_shaku.default.gfx.clear(background_color);
   let mouse_frame = grid.screen2frame(import_shaku2.input.mousePosition);
   if (mouse_frame !== null) {
     if (mouse_frame.tile.car !== null) {
@@ -11087,7 +11140,11 @@ function step() {
     }
   } else {
     if (import_shaku2.input.mouseReleased()) {
-      new import_animator.default(dragging.car).to({ "offset": 0 }).duration(0.1).play();
+      if (dragging.car.main && dragging.car.prev === null) {
+        startEnding();
+      } else {
+        new import_animator.default(dragging.car).to({ "offset": 0 }).duration(0.1).play();
+      }
       dragging = null;
     } else {
       let cur_mouse_frame = dragging.car.head.clone().move(0, dragging.car.offset + dragging.total_offset);
@@ -11113,6 +11170,8 @@ function step() {
   grid.update(import_shaku.default.gameTime.delta);
   grid.draw();
   cars.forEach((c) => c.draw());
+  import_shaku.default.gfx.drawSprite(frame_sprite);
+  import_shaku.default.gfx.drawSprite(extra_sprite);
   if (debug_thing) {
     import_shaku2.gfx.fillCircle(new import_circle.default(grid.frame2screen(debug_thing), TILE_SIZE / 5), import_color.default.black);
   }
