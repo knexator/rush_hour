@@ -17,6 +17,7 @@ const CONFIG = {
     thingySpeed: 5,
     friction: 5.5,
     margin: 2 * 7 / 120, // 2 * empty pixels / texture tile size
+    thingySlack: .05,
 };
 let gui = new dat.GUI({});
 gui.remember(CONFIG);
@@ -25,6 +26,7 @@ gui.add(CONFIG, "force", 0, 200);
 gui.add(CONFIG, "thingySpeed", 0, 50);
 gui.add(CONFIG, "friction", 0, 10);
 gui.add(CONFIG, "margin", 0, .5);
+gui.add(CONFIG, "thingySlack", 0, .5);
 gui.hide();
 
 // init shaku
@@ -42,6 +44,17 @@ cars_texture.filter = TextureFilterModes.Linear;
 let frame_texture = await Shaku.assets.loadTexture('imgs/frame.png', null);
 frame_texture.filter = TextureFilterModes.Linear;
 let frame_sprite = new Sprite(frame_texture);
+let bar_texture = await Shaku.assets.loadTexture('imgs/bar.png', null);
+bar_texture.filter = TextureFilterModes.Linear;
+let bar_sprite = new Sprite(bar_texture);
+let knob_texture = await Shaku.assets.loadTexture('imgs/knob.png', null);
+knob_texture.filter = TextureFilterModes.Linear;
+let knob_sprite = new Sprite(knob_texture);
+// const COLOR_KNOB_INACTIVE = Color.fromHex("#724254");
+const COLOR_KNOB_INACTIVE = Color.fromHex("#462C4B");
+// const COLOR_KNOB_ACTIVE = Color.fromHex("#fcebb6");
+const COLOR_KNOB_ACTIVE = Color.fromHex("#c18c72");
+knob_sprite.color = COLOR_KNOB_INACTIVE;
 
 let car_effect = Shaku.gfx.createEffect(CarEffect);
 let background_effect = Shaku.gfx.createEffect(BackgroundEffect);
@@ -95,6 +108,8 @@ const TILE_SIZE = 80 * Shaku.gfx.canvas.width / 600;
 const OFFSET = new Vector2(-TILE_SIZE / 4, -TILE_SIZE / 4);
 
 frame_sprite.size.mulSelf(TILE_SIZE / 80);
+bar_sprite.size.mulSelf(TILE_SIZE / 80);
+knob_sprite.size.mulSelf(1.25 * TILE_SIZE / 80);
 
 /** between -1 & 1, the grid's deformation; 1 means (3,2) goes to (4,3) */
 let THINGY = 0;
@@ -733,6 +748,7 @@ let dragging: {
     // segment: number;
     // offset: number;
 } | null = null;
+let dragging_knob = false;
 
 let background_color = Color.fromHex("#4e5e5e");
 
@@ -751,6 +767,8 @@ for (let j = 0; j < grid.h; j++) {
 grid.tiles[3][7].wall = false;
 
 frame_sprite.position = OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 4);
+bar_sprite.position = OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 7.75);
+knob_sprite.position = OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 7.75);
 
 let extra_sprite = new Sprite(whiteTexture);
 extra_sprite.origin.set(0, 0);
@@ -795,8 +813,6 @@ function specialTileInUse(): boolean {
     }
 }
 
-let debug_thing: Frame | null = null;
-
 function startEnding() {
     ENDING = true;
     dragging = null;
@@ -823,6 +839,7 @@ function step() {
     Shaku.gfx!.clear(background_color);
 
     // EDITOR
+    /*
     let mouse_frame = grid.screen2frame(input.mousePosition)
     if (mouse_frame !== null) {
         if (mouse_frame.tile.car !== null) {
@@ -849,32 +866,65 @@ function step() {
             }
         }
     }
+    */
+
+    let in_use = specialTileInUse();
+    knob_sprite.color = in_use ? COLOR_KNOB_INACTIVE : COLOR_KNOB_ACTIVE;
+
+    let mouse_pos = Shaku.input.mousePosition;
+    let close_to_knob = mouse_pos.distanceTo(knob_sprite.position as Vector2) < TILE_SIZE * .25;
+    let hover_frame = grid.screen2frame(mouse_pos);
+    if (dragging_knob || dragging) {
+        document.body.style.cursor = "grabbing";
+    } else {
+        if (close_to_knob || (hover_frame && hover_frame.tile.car)) {
+            document.body.style.cursor = "grab";
+        } else {
+            document.body.style.cursor = "default";
+        }
+    }
 
     if (dragging === null) {
-        let thingyGoal = Math.round(THINGY);
-        let in_use = specialTileInUse();
-        if (input.keyDown(KeyboardKeys.down) || input.keyDown(KeyboardKeys.s)) {
-            thingyGoal = in_use ? moveTowards(thingyGoal, 0, .1) : 0;
+        /*if (input.keyDown(KeyboardKeys.down) || input.keyDown(KeyboardKeys.s)) {
+            thingyGoal = in_use ? moveTowards(thingyGoal, 0, CONFIG.thingySlack) : 0;
         } else if (input.keyDown(KeyboardKeys.right) || input.keyDown(KeyboardKeys.d)) {
-            thingyGoal = in_use ? moveTowards(thingyGoal, 1, .1) : 1;
+            thingyGoal = in_use ? moveTowards(thingyGoal, 1, CONFIG.thingySlack) : 1;
         } else if (input.keyDown(KeyboardKeys.left) || input.keyDown(KeyboardKeys.a)) {
-            thingyGoal = in_use ? moveTowards(thingyGoal, -1, .1) : -1;
+            thingyGoal = in_use ? moveTowards(thingyGoal, -1, CONFIG.thingySlack) : -1;
+        }*/
+        if (close_to_knob && !dragging_knob && input.mousePressed()) {
+            dragging_knob = true;
         }
-        THINGY = moveTowards(THINGY, thingyGoal, Shaku.gameTime.delta * CONFIG.thingySpeed);
+        if (dragging_knob) {
+            let goal = ((OFFSET.x + TILE_SIZE * 4) - mouse_pos.x) / (TILE_SIZE * 2);
+            goal = clamp(goal, -1, 1);
+            if (!in_use) {
+                THINGY = goal;
+            } else {
+                goal = moveTowards(Math.round(THINGY), goal, CONFIG.thingySlack);
+                THINGY = clamp(goal, -1, 1);
+            }
+            if (Shaku.input.mouseReleased()) {
+                dragging_knob = false;
+            }
+        } else {
+            let thingyGoal = Math.round(THINGY);
+            THINGY = moveTowards(THINGY, thingyGoal, Shaku.gameTime.delta * CONFIG.thingySpeed);
+        }
+        knob_sprite.position.x = OFFSET.x + TILE_SIZE * 4 - THINGY * TILE_SIZE * 2;
         cars.forEach(c => c.recalcStuff());
 
         if (input.mousePressed()) {
-            let grabbed_frame = grid.screen2frame(input.mousePosition);
-            if (grabbed_frame !== null && grabbed_frame.tile.car !== null) {
-                let car = grabbed_frame.tile.car;
+            if (hover_frame !== null && hover_frame.tile.car !== null) {
+                let car = hover_frame.tile.car;
                 let segment = 0;
                 let car_head = car.head.clone();
-                while (car_head.tile != grabbed_frame.tile) {
+                while (car_head.tile != hover_frame.tile) {
                     segment++;
                     car_head.move(2, 1.0);
                 }
-                grabbed_frame.redir(car_head.dir);
-                let offset = grabbed_frame.pos.x - .5;
+                hover_frame.redir(car_head.dir);
+                let offset = hover_frame.pos.x - .5;
 
                 dragging = {
                     car: car,
@@ -904,28 +954,14 @@ function step() {
         }
     }
 
-    if (input.keyPressed(KeyboardKeys.g)) {
-        // console.log(grid.screen2frame(input.mousePosition));
-        console.log(grid.tiles[0][0].invBilinear(input.mousePosition));
-        debug_thing = grid.screen2frame(input.mousePosition);
-    }
-
-    if (input.keyPressed(KeyboardKeys.e)) {
-        console.log(mouse_frame);
-        console.log("dir X: ", grid.frame2screenDirX(mouse_frame!));
-        // console.log("dir Y: ", grid.frame2screenDirY(mouse_frame!));
-    }
-
     Shaku.gfx.drawSprite(border_sprite);
     grid.update(Shaku.gameTime.delta);
     grid.draw();
     cars.forEach(c => c.draw());
     Shaku.gfx.drawSprite(frame_sprite);
     Shaku.gfx.drawSprite(extra_sprite);
-
-    if (debug_thing) {
-        gfx.fillCircle(new Circle(grid.frame2screen(debug_thing), TILE_SIZE / 5), Color.black);
-    }
+    Shaku.gfx.drawSprite(bar_sprite);
+    Shaku.gfx.drawSprite(knob_sprite);
 
     // end frame and request next step
     Shaku.endFrame();

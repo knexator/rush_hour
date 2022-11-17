@@ -1223,13 +1223,13 @@ var require_circle = __commonJS({
     "use strict";
     var MathHelper = require_math_helper();
     var Vector22 = require_vector2();
-    var Circle2 = class {
+    var Circle = class {
       constructor(center, radius) {
         this.center = center.clone();
         this.radius = radius;
       }
       clone() {
-        return new Circle2(this.center, this.radius);
+        return new Circle(this.center, this.radius);
       }
       containsVector(p) {
         return this.center.distanceTo(p) <= this.radius;
@@ -1238,7 +1238,7 @@ var require_circle = __commonJS({
         return other === this || other && other.constructor === this.constructor && this.center.equals(other.center) && this.radius == other.radius;
       }
       static fromDict(data) {
-        return new Circle2(Vector22.fromDict(data.center || {}), data.radius || 0);
+        return new Circle(Vector22.fromDict(data.center || {}), data.radius || 0);
       }
       toDict(minimized) {
         if (minimized) {
@@ -1255,10 +1255,10 @@ var require_circle = __commonJS({
       }
       static lerp(p1, p2, a) {
         let lerpScalar = MathHelper.lerp;
-        return new Circle2(Vector22.lerp(p1.center, p2.center, a), lerpScalar(p1.radius, p2.radius, a));
+        return new Circle(Vector22.lerp(p1.center, p2.center, a), lerpScalar(p1.radius, p2.radius, a));
       }
     };
-    module.exports = Circle2;
+    module.exports = Circle;
   }
 });
 
@@ -1362,7 +1362,7 @@ var require_line = __commonJS({
 var require_rectangle = __commonJS({
   "../Shaku/lib/utils/rectangle.js"(exports, module) {
     "use strict";
-    var Circle2 = require_circle();
+    var Circle = require_circle();
     var Line2 = require_line();
     var MathHelper = require_math_helper();
     var Vector22 = require_vector2();
@@ -1490,7 +1490,7 @@ var require_rectangle = __commonJS({
       getBoundingCircle() {
         let center = this.getCenter();
         let radius = center.distanceTo(this.getTopLeft());
-        return new Circle2(center, radius);
+        return new Circle(center, radius);
       }
       static fromPoints(points) {
         let min_x = points[0].x;
@@ -5243,7 +5243,7 @@ var require_gfx = __commonJS({
     var MsdfFontTextureAsset = require_msdf_font_texture_asset();
     var { TextAlignment, TextAlignments } = require_text_alignments();
     var Mesh = require_mesh();
-    var Circle2 = require_circle();
+    var Circle = require_circle();
     var SpriteBatch = require_sprite_batch();
     var Vector32 = require_vector3();
     var Vertex2 = require_vertex();
@@ -5821,7 +5821,7 @@ var require_gfx = __commonJS({
       }
       inScreen(shape) {
         let region = this.getRenderingRegion();
-        if (shape instanceof Circle2) {
+        if (shape instanceof Circle) {
           return region.collideCircle(shape);
         } else if (shape instanceof Vector22) {
           return region.containsVector(shape);
@@ -6084,7 +6084,7 @@ var require_key_codes = __commonJS({
       middle: 1,
       right: 2
     };
-    var KeyboardKeys2 = {
+    var KeyboardKeys = {
       backspace: 8,
       tab: 9,
       enter: 13,
@@ -6187,7 +6187,7 @@ var require_key_codes = __commonJS({
       close_braket: 221,
       single_quote: 222
     };
-    module.exports = { KeyboardKeys: KeyboardKeys2, MouseButtons };
+    module.exports = { KeyboardKeys, MouseButtons };
   }
 });
 
@@ -6197,7 +6197,7 @@ var require_input = __commonJS({
     "use strict";
     var IManager = require_manager();
     var Vector22 = require_vector2();
-    var { MouseButton, MouseButtons, KeyboardKey, KeyboardKeys: KeyboardKeys2 } = require_key_codes();
+    var { MouseButton, MouseButtons, KeyboardKey, KeyboardKeys } = require_key_codes();
     var _logger = require_logger().getLogger("input");
     var Input = class extends IManager {
       constructor() {
@@ -6205,7 +6205,7 @@ var require_input = __commonJS({
         this._callbacks = null;
         this._targetElement = window;
         this.MouseButtons = MouseButtons;
-        this.KeyboardKeys = KeyboardKeys2;
+        this.KeyboardKeys = KeyboardKeys;
         this.preventDefaults = false;
         this.enableMouseDeltaWhileMouseWheelDown = true;
         this.disableContextMenu = true;
@@ -7031,7 +7031,7 @@ var require_point = __commonJS({
     var gfx2 = require_gfx2();
     var Vector22 = require_vector2();
     var Rectangle = require_rectangle();
-    var Circle2 = require_circle();
+    var Circle = require_circle();
     var PointShape = class extends CollisionShape {
       constructor(position) {
         super();
@@ -7062,7 +7062,7 @@ var require_point = __commonJS({
           opacity = 1;
         let color = this._getDebugColor();
         color.a *= opacity;
-        gfx2.outlineCircle(new Circle2(this.getPosition(), 3), color, gfx2.BlendModes.AlphaBlend, 4);
+        gfx2.outlineCircle(new Circle(this.getPosition(), 3), color, gfx2.BlendModes.AlphaBlend, 4);
       }
     };
     module.exports = PointShape;
@@ -7075,7 +7075,7 @@ var require_circle2 = __commonJS({
     "use strict";
     var CollisionShape = require_shape();
     var gfx2 = require_gfx2();
-    var Circle2 = require_circle();
+    var Circle = require_circle();
     var Rectangle = require_rectangle();
     var CircleShape = class extends CollisionShape {
       constructor(circle) {
@@ -7120,7 +7120,7 @@ var require_collision_world = __commonJS({
     "use strict";
     var Color3 = require_color();
     var Vector22 = require_vector2();
-    var Circle2 = require_circle();
+    var Circle = require_circle();
     var CollisionTestResult = require_result();
     var CollisionShape = require_shape();
     var gfx2 = require_gfx2();
@@ -7347,7 +7347,7 @@ var require_collision_world = __commonJS({
         return ret;
       }
       pick(position, radius, sortByDistance, mask, predicate) {
-        let shape = (radius || 0) <= 1 ? new PointShape(position) : new CircleShape(new Circle2(position, radius));
+        let shape = (radius || 0) <= 1 ? new PointShape(position) : new CircleShape(new Circle(position, radius));
         let ret = this.testCollisionMany(shape, sortByDistance, mask, predicate);
         return ret.map((x) => x.second);
       }
@@ -7555,7 +7555,7 @@ var require_lines = __commonJS({
     var gfx2 = require_gfx2();
     var Line2 = require_line();
     var Rectangle = require_rectangle();
-    var Circle2 = require_circle();
+    var Circle = require_circle();
     var LinesShape = class extends CollisionShape {
       constructor(lines) {
         super();
@@ -7578,7 +7578,7 @@ var require_lines = __commonJS({
           points.push(this._lines[i].to);
         }
         this._boundingBox = Rectangle.fromPoints(points);
-        this._circle = new Circle2(this._boundingBox.getCenter(), Math.max(this._boundingBox.width, this._boundingBox.height));
+        this._circle = new Circle(this._boundingBox.getCenter(), Math.max(this._boundingBox.width, this._boundingBox.height));
         this._shapeChanged();
       }
       setLines(lines) {
@@ -10436,8 +10436,6 @@ var import_color = __toESM(require_color());
 var import_vector2 = __toESM(require_vector2());
 var import_sprite = __toESM(require_sprite());
 var import_shaku2 = __toESM(require_lib());
-var import_circle = __toESM(require_circle());
-var import_key_codes = __toESM(require_key_codes());
 var import_animator = __toESM(require_animator());
 
 // src/car_effect.ts
@@ -10547,7 +10545,8 @@ var CONFIG = {
   force: 90,
   thingySpeed: 5,
   friction: 5.5,
-  margin: 2 * 7 / 120
+  margin: 2 * 7 / 120,
+  thingySlack: 0.05
 };
 var gui = new GUI$1({});
 gui.remember(CONFIG);
@@ -10556,6 +10555,7 @@ gui.add(CONFIG, "force", 0, 200);
 gui.add(CONFIG, "thingySpeed", 0, 50);
 gui.add(CONFIG, "friction", 0, 10);
 gui.add(CONFIG, "margin", 0, 0.5);
+gui.add(CONFIG, "thingySlack", 0, 0.5);
 gui.hide();
 await import_shaku.default.init();
 document.body.appendChild(import_shaku.default.gfx.canvas);
@@ -10566,6 +10566,15 @@ cars_texture.filter = import_gfx2.TextureFilterModes.Linear;
 var frame_texture = await import_shaku.default.assets.loadTexture("imgs/frame.png", null);
 frame_texture.filter = import_gfx2.TextureFilterModes.Linear;
 var frame_sprite = new import_sprite.default(frame_texture);
+var bar_texture = await import_shaku.default.assets.loadTexture("imgs/bar.png", null);
+bar_texture.filter = import_gfx2.TextureFilterModes.Linear;
+var bar_sprite = new import_sprite.default(bar_texture);
+var knob_texture = await import_shaku.default.assets.loadTexture("imgs/knob.png", null);
+knob_texture.filter = import_gfx2.TextureFilterModes.Linear;
+var knob_sprite = new import_sprite.default(knob_texture);
+var COLOR_KNOB_INACTIVE = import_color.default.fromHex("#462C4B");
+var COLOR_KNOB_ACTIVE = import_color.default.fromHex("#c18c72");
+knob_sprite.color = COLOR_KNOB_INACTIVE;
 var car_effect = import_shaku.default.gfx.createEffect(CarEffect);
 var background_effect = import_shaku.default.gfx.createEffect(BackgroundEffect);
 var DIRS = [
@@ -10591,6 +10600,8 @@ var RESOLUTION = 3;
 var TILE_SIZE = 80 * import_shaku.default.gfx.canvas.width / 600;
 var OFFSET = new import_vector2.default(-TILE_SIZE / 4, -TILE_SIZE / 4);
 frame_sprite.size.mulSelf(TILE_SIZE / 80);
+bar_sprite.size.mulSelf(TILE_SIZE / 80);
+knob_sprite.size.mulSelf(1.25 * TILE_SIZE / 80);
 var THINGY = 0;
 var SI = 4;
 var SJ = 4;
@@ -11020,6 +11031,7 @@ var Car = class {
   }
 };
 var dragging = null;
+var dragging_knob = false;
 var background_color = import_color.default.fromHex("#4e5e5e");
 var border_sprite = new import_sprite.default(import_gfx2.whiteTexture);
 border_sprite.origin.set(0, 0);
@@ -11034,6 +11046,8 @@ for (let j = 0; j < grid.h; j++) {
 }
 grid.tiles[3][7].wall = false;
 frame_sprite.position = OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 4);
+bar_sprite.position = OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 7.75);
+knob_sprite.position = OFFSET.add(TILE_SIZE * 4, TILE_SIZE * 7.75);
 var extra_sprite = new import_sprite.default(import_gfx2.whiteTexture);
 extra_sprite.origin.set(0, 0);
 extra_sprite.size.set(TILE_SIZE, TILE_SIZE);
@@ -11066,7 +11080,6 @@ function specialTileInUse() {
     }
   }
 }
-var debug_thing = null;
 function startEnding() {
   ENDING = true;
   dragging = null;
@@ -11085,55 +11098,53 @@ function startEnding() {
 function step() {
   import_shaku.default.startFrame();
   import_shaku.default.gfx.clear(background_color);
-  let mouse_frame = grid.screen2frame(import_shaku2.input.mousePosition);
-  if (mouse_frame !== null) {
-    if (mouse_frame.tile.car !== null) {
-      if (import_shaku2.input.keyPressed(import_key_codes.KeyboardKeys.n1)) {
-        let car = mouse_frame.tile.car;
-        cars = cars.filter((x) => x != car);
-        forEachTile(grid.tiles, (tile, i, j) => {
-          if (tile.car === car) {
-            tile.car = null;
-          }
-        });
-      }
+  let in_use = specialTileInUse();
+  knob_sprite.color = in_use ? COLOR_KNOB_INACTIVE : COLOR_KNOB_ACTIVE;
+  let mouse_pos = import_shaku.default.input.mousePosition;
+  let close_to_knob = mouse_pos.distanceTo(knob_sprite.position) < TILE_SIZE * 0.25;
+  let hover_frame = grid.screen2frame(mouse_pos);
+  if (dragging_knob || dragging) {
+    document.body.style.cursor = "grabbing";
+  } else {
+    if (close_to_knob || hover_frame && hover_frame.tile.car) {
+      document.body.style.cursor = "grab";
     } else {
-      if (import_shaku2.input.keyPressed(import_key_codes.KeyboardKeys.n2) || import_shaku2.input.keyPressed(import_key_codes.KeyboardKeys.n3)) {
-        while (true) {
-          console.log(mouse_frame.pos, mouse_frame.dir);
-          if (mouse_frame.pos.x - 0.5 > Math.abs(mouse_frame.pos.y - 0.5)) {
-            break;
-          }
-          mouse_frame.rotccw();
-        }
-        cars.push(new Car(new Frame(mouse_frame.tile, import_vector2.default.half, mouse_frame.dir), import_shaku2.input.keyPressed(import_key_codes.KeyboardKeys.n2) ? 2 : 3));
-      }
+      document.body.style.cursor = "default";
     }
   }
   if (dragging === null) {
-    let thingyGoal = Math.round(THINGY);
-    let in_use = specialTileInUse();
-    if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.down) || import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.s)) {
-      thingyGoal = in_use ? moveTowards(thingyGoal, 0, 0.1) : 0;
-    } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.right) || import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.d)) {
-      thingyGoal = in_use ? moveTowards(thingyGoal, 1, 0.1) : 1;
-    } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.left) || import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.a)) {
-      thingyGoal = in_use ? moveTowards(thingyGoal, -1, 0.1) : -1;
+    if (close_to_knob && !dragging_knob && import_shaku2.input.mousePressed()) {
+      dragging_knob = true;
     }
-    THINGY = moveTowards(THINGY, thingyGoal, import_shaku.default.gameTime.delta * CONFIG.thingySpeed);
+    if (dragging_knob) {
+      let goal = (OFFSET.x + TILE_SIZE * 4 - mouse_pos.x) / (TILE_SIZE * 2);
+      goal = clamp(goal, -1, 1);
+      if (!in_use) {
+        THINGY = goal;
+      } else {
+        goal = moveTowards(Math.round(THINGY), goal, CONFIG.thingySlack);
+        THINGY = clamp(goal, -1, 1);
+      }
+      if (import_shaku.default.input.mouseReleased()) {
+        dragging_knob = false;
+      }
+    } else {
+      let thingyGoal = Math.round(THINGY);
+      THINGY = moveTowards(THINGY, thingyGoal, import_shaku.default.gameTime.delta * CONFIG.thingySpeed);
+    }
+    knob_sprite.position.x = OFFSET.x + TILE_SIZE * 4 - THINGY * TILE_SIZE * 2;
     cars.forEach((c) => c.recalcStuff());
     if (import_shaku2.input.mousePressed()) {
-      let grabbed_frame = grid.screen2frame(import_shaku2.input.mousePosition);
-      if (grabbed_frame !== null && grabbed_frame.tile.car !== null) {
-        let car = grabbed_frame.tile.car;
+      if (hover_frame !== null && hover_frame.tile.car !== null) {
+        let car = hover_frame.tile.car;
         let segment = 0;
         let car_head = car.head.clone();
-        while (car_head.tile != grabbed_frame.tile) {
+        while (car_head.tile != hover_frame.tile) {
           segment++;
           car_head.move(2, 1);
         }
-        grabbed_frame.redir(car_head.dir);
-        let offset = grabbed_frame.pos.x - 0.5;
+        hover_frame.redir(car_head.dir);
+        let offset = hover_frame.pos.x - 0.5;
         dragging = {
           car,
           total_offset: offset - segment
@@ -11160,23 +11171,14 @@ function step() {
       dragging.car.addOffset(import_vector2.default.dot(delta_vec, import_shaku2.input.mouseDelta) / TILE_SIZE);
     }
   }
-  if (import_shaku2.input.keyPressed(import_key_codes.KeyboardKeys.g)) {
-    console.log(grid.tiles[0][0].invBilinear(import_shaku2.input.mousePosition));
-    debug_thing = grid.screen2frame(import_shaku2.input.mousePosition);
-  }
-  if (import_shaku2.input.keyPressed(import_key_codes.KeyboardKeys.e)) {
-    console.log(mouse_frame);
-    console.log("dir X: ", grid.frame2screenDirX(mouse_frame));
-  }
   import_shaku.default.gfx.drawSprite(border_sprite);
   grid.update(import_shaku.default.gameTime.delta);
   grid.draw();
   cars.forEach((c) => c.draw());
   import_shaku.default.gfx.drawSprite(frame_sprite);
   import_shaku.default.gfx.drawSprite(extra_sprite);
-  if (debug_thing) {
-    import_shaku2.gfx.fillCircle(new import_circle.default(grid.frame2screen(debug_thing), TILE_SIZE / 5), import_color.default.black);
-  }
+  import_shaku.default.gfx.drawSprite(bar_sprite);
+  import_shaku.default.gfx.drawSprite(knob_sprite);
   import_shaku.default.endFrame();
   import_shaku.default.requestAnimationFrame(step);
 }
@@ -11193,14 +11195,6 @@ function makeRectArrayFromFunction(width, height, fill) {
     result2.push(cur_row);
   }
   return result2;
-}
-function forEachTile(map2, func) {
-  for (let j = 0; j < map2.length; j++) {
-    let cur_row = map2[j];
-    for (let i = 0; i < map2[0].length; i++) {
-      func(cur_row[i], i, j);
-    }
-  }
 }
 function clamp(value, a, b) {
   if (value < a)
