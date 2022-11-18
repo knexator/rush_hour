@@ -1032,7 +1032,8 @@ function moveTowardsV(cur_val: Vector2, target_val: Vector2, max_dist: number): 
 }
 
 // test loading screen
-await new Promise(r => setTimeout(r, 2000));
+// await new Promise(r => setTimeout(r, 2000));
+
 document.getElementById("loading")!.style.opacity = "0";
 
 // start main loop

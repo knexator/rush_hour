@@ -11209,7 +11209,6 @@ function moveTowards(cur_val, target_val, max_delta) {
     return target_val;
   }
 }
-await new Promise((r) => setTimeout(r, 2e3));
 document.getElementById("loading").style.opacity = "0";
 step();
 /**
