@@ -105,7 +105,10 @@ function localPos(pos: Vector2): boolean {
 
 const RESOLUTION = 3;
 const TILE_SIZE = 80 * Shaku.gfx.canvas.width / 600;
-const OFFSET = new Vector2(-TILE_SIZE / 4, -TILE_SIZE / 4);
+// const OFFSET = new Vector2(-TILE_SIZE / 4, -TILE_SIZE / 4);
+// OFFSET + TILE_SIZE * 4 = screen center
+// OFFSET = width / 2 - TILE_SIZE * 4
+const OFFSET = new Vector2((Shaku.gfx.canvas.width / 2) - TILE_SIZE * 4, (Shaku.gfx.canvas.height / 2) - TILE_SIZE * 4.25);
 
 frame_sprite.size.mulSelf(TILE_SIZE / 80);
 bar_sprite.size.mulSelf(TILE_SIZE / 80);
@@ -968,14 +971,6 @@ function step() {
     Shaku.requestAnimationFrame(step);
 }
 
-let hola = Shaku!.gfx!.canvas;
-console.log(hola);
-
-// console.log(Shaku)
-
-// start main loop
-step();
-
 function makeRectArray<T>(width: number, height: number, fill: T): T[][] {
     let result: T[][] = [];
     for (let j = 0; j < height; j++) {
@@ -1035,3 +1030,10 @@ function moveTowardsV(cur_val: Vector2, target_val: Vector2, max_dist: number): 
     delta.mulSelf(max_dist / dist);
     return cur_val.add(delta);
 }
+
+// test loading screen
+await new Promise(r => setTimeout(r, 2000));
+document.getElementById("loading")!.style.opacity = "0";
+
+// start main loop
+step();

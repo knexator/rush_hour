@@ -10598,7 +10598,7 @@ function localPos(pos) {
 }
 var RESOLUTION = 3;
 var TILE_SIZE = 80 * import_shaku.default.gfx.canvas.width / 600;
-var OFFSET = new import_vector2.default(-TILE_SIZE / 4, -TILE_SIZE / 4);
+var OFFSET = new import_vector2.default(import_shaku.default.gfx.canvas.width / 2 - TILE_SIZE * 4, import_shaku.default.gfx.canvas.height / 2 - TILE_SIZE * 4.25);
 frame_sprite.size.mulSelf(TILE_SIZE / 80);
 bar_sprite.size.mulSelf(TILE_SIZE / 80);
 knob_sprite.size.mulSelf(1.25 * TILE_SIZE / 80);
@@ -11182,9 +11182,6 @@ function step() {
   import_shaku.default.endFrame();
   import_shaku.default.requestAnimationFrame(step);
 }
-var hola = import_shaku.default.gfx.canvas;
-console.log(hola);
-step();
 function makeRectArrayFromFunction(width, height, fill) {
   let result2 = [];
   for (let j = 0; j < height; j++) {
@@ -11212,6 +11209,9 @@ function moveTowards(cur_val, target_val, max_delta) {
     return target_val;
   }
 }
+await new Promise((r) => setTimeout(r, 2e3));
+document.getElementById("loading").style.opacity = "0";
+step();
 /**
  * A utility to hold gametime.
  * 
