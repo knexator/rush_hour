@@ -11,7 +11,6 @@ export class BackgroundEffect extends BasicEffect {
         return `
         attribute vec3 position;
         attribute vec2 coord;
-        attribute vec4 color;
         
         uniform mat4 projection;
         uniform mat4 world;
@@ -25,8 +24,16 @@ export class BackgroundEffect extends BasicEffect {
             // 1 pixel margin around the square
             v_texCoord = coord * vec2(1. / 5., 1. / 3.);
             // v_texCoord = vec2(${1 / (TEXTURE_TILE * N_TILES_X)}, ${1 / (TEXTURE_TILE * N_TILES_Y)}) + coord.x * ${(TEXTURE_TILE - 2) / (TEXTURE_TILE * N_TILES_X)} + coord.y * ${(TEXTURE_TILE - 2) / (TEXTURE_TILE * N_TILES_Y)};
-            v_color = vec4(1.0,1.0,1.0,1.0) + color*0.0;
+            v_color = vec4(1.0,1.0,1.0,1.0);
         }`;
+    }
+
+    // @ts-ignore
+    get attributeTypes() {
+        return {
+            "position": { size: 3, type: Effect.AttributeTypes.Float, normalize: false, bind: Effect.AttributeBinds.Position },
+            "coord": { size: 2, type: Effect.AttributeTypes.Float, normalize: false, bind: Effect.AttributeBinds.TextureCoords },
+        };
     }
 }
 
