@@ -11106,7 +11106,7 @@ function step() {
   let in_use = specialTileInUse();
   knob_sprite.color = in_use ? COLOR_KNOB_INACTIVE : COLOR_KNOB_ACTIVE;
   let mouse_pos = import_shaku.default.input.mousePosition;
-  let close_to_knob = mouse_pos.distanceTo(knob_sprite.position) < TILE_SIZE * 0.25;
+  let close_to_knob = mouse_pos.distanceTo(knob_sprite.position) < TILE_SIZE * 0.75;
   let hover_frame = grid.screen2frame(mouse_pos);
   if (dragging_knob || dragging) {
     document.body.style.cursor = "grabbing";

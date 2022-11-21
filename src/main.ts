@@ -875,7 +875,7 @@ function step() {
     knob_sprite.color = in_use ? COLOR_KNOB_INACTIVE : COLOR_KNOB_ACTIVE;
 
     let mouse_pos = Shaku.input.mousePosition;
-    let close_to_knob = mouse_pos.distanceTo(knob_sprite.position as Vector2) < TILE_SIZE * .25;
+    let close_to_knob = mouse_pos.distanceTo(knob_sprite.position as Vector2) < TILE_SIZE * .75;
     let hover_frame = grid.screen2frame(mouse_pos);
     if (dragging_knob || dragging) {
         document.body.style.cursor = "grabbing";
