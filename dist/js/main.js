@@ -6084,7 +6084,7 @@ var require_key_codes = __commonJS({
       middle: 1,
       right: 2
     };
-    var KeyboardKeys = {
+    var KeyboardKeys2 = {
       backspace: 8,
       tab: 9,
       enter: 13,
@@ -6187,7 +6187,7 @@ var require_key_codes = __commonJS({
       close_braket: 221,
       single_quote: 222
     };
-    module.exports = { KeyboardKeys, MouseButtons };
+    module.exports = { KeyboardKeys: KeyboardKeys2, MouseButtons };
   }
 });
 
@@ -6197,7 +6197,7 @@ var require_input = __commonJS({
     "use strict";
     var IManager = require_manager();
     var Vector22 = require_vector2();
-    var { MouseButton, MouseButtons, KeyboardKey, KeyboardKeys } = require_key_codes();
+    var { MouseButton, MouseButtons, KeyboardKey, KeyboardKeys: KeyboardKeys2 } = require_key_codes();
     var _logger = require_logger().getLogger("input");
     var Input = class extends IManager {
       constructor() {
@@ -6205,7 +6205,7 @@ var require_input = __commonJS({
         this._callbacks = null;
         this._targetElement = window;
         this.MouseButtons = MouseButtons;
-        this.KeyboardKeys = KeyboardKeys;
+        this.KeyboardKeys = KeyboardKeys2;
         this.preventDefaults = false;
         this.enableMouseDeltaWhileMouseWheelDown = true;
         this.disableContextMenu = true;
@@ -6228,55 +6228,56 @@ var require_input = __commonJS({
           window.setTimeout(() => element.focus(), 0);
           var _this = this;
           this._callbacks = {
-            "mousedown": function(event2) {
+            "mousedown": (event2) => {
               _this._onMouseDown(event2);
               if (this.preventDefaults)
                 event2.preventDefault();
             },
-            "mouseup": function(event2) {
+            "mouseup": (event2) => {
               _this._onMouseUp(event2);
               if (this.preventDefaults)
                 event2.preventDefault();
             },
-            "mousemove": function(event2) {
+            "mousemove": (event2) => {
               _this._onMouseMove(event2);
               if (this.preventDefaults)
                 event2.preventDefault();
             },
-            "keydown": function(event2) {
+            "keydown": (event2) => {
               _this._onKeyDown(event2);
-              if (this.preventDefaults)
+              if (this.preventDefaults || ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(event2.code) > -1) {
                 event2.preventDefault();
+              }
             },
-            "keyup": function(event2) {
+            "keyup": (event2) => {
               _this._onKeyUp(event2);
               if (this.preventDefaults)
                 event2.preventDefault();
             },
-            "blur": function(event2) {
+            "blur": (event2) => {
               _this._onBlur(event2);
               if (this.preventDefaults)
                 event2.preventDefault();
             },
-            "wheel": function(event2) {
+            "wheel": (event2) => {
               _this._onMouseWheel(event2);
             },
-            "touchstart": function(event2) {
+            "touchstart": (event2) => {
               _this._onTouchStart(event2);
               if (this.preventDefaults)
                 event2.preventDefault();
             },
-            "touchend": function(event2) {
+            "touchend": (event2) => {
               _this._onMouseUp(event2);
               if (this.preventDefaults)
                 event2.preventDefault();
             },
-            "touchmove": function(event2) {
+            "touchmove": (event2) => {
               _this._onTouchMove(event2);
               if (this.preventDefaults)
                 event2.preventDefault();
             },
-            "contextmenu": function(event2) {
+            "contextmenu": (event2) => {
               if (_this.disableContextMenu) {
                 event2.preventDefault();
               }
@@ -10436,6 +10437,7 @@ var import_color = __toESM(require_color());
 var import_vector2 = __toESM(require_vector2());
 var import_sprite = __toESM(require_sprite());
 var import_shaku2 = __toESM(require_lib());
+var import_key_codes = __toESM(require_key_codes());
 var import_animator = __toESM(require_animator());
 
 // src/car_effect.ts
@@ -10551,7 +10553,9 @@ var CONFIG = {
   thingySpeed: 5,
   friction: 5.5,
   margin: 2 * 7 / 120,
-  thingySlack: 0.05
+  thingySlack: 0.05,
+  knobSpeed: 0.2,
+  knobKeyboardSpeed: 0.1
 };
 var gui = new GUI$1({});
 gui.remember(CONFIG);
@@ -10561,7 +10565,6 @@ gui.add(CONFIG, "thingySpeed", 0, 50);
 gui.add(CONFIG, "friction", 0, 10);
 gui.add(CONFIG, "margin", 0, 0.5);
 gui.add(CONFIG, "thingySlack", 0, 0.5);
-gui.hide();
 await import_shaku.default.init();
 document.body.appendChild(import_shaku.default.gfx.canvas);
 import_shaku.default.gfx.centerCanvas();
@@ -11106,7 +11109,7 @@ function step() {
   let in_use = specialTileInUse();
   knob_sprite.color = in_use ? COLOR_KNOB_INACTIVE : COLOR_KNOB_ACTIVE;
   let mouse_pos = import_shaku.default.input.mousePosition;
-  let close_to_knob = mouse_pos.distanceTo(knob_sprite.position) < TILE_SIZE * 0.75;
+  let close_to_knob = Math.abs(mouse_pos.y - knob_sprite.position.y) < TILE_SIZE * 0.75 && Math.abs(mouse_pos.x - (OFFSET.x + TILE_SIZE * 4)) < TILE_SIZE * 2.75;
   let hover_frame = grid.screen2frame(mouse_pos);
   if (dragging_knob || dragging) {
     document.body.style.cursor = "grabbing";
@@ -11118,24 +11121,36 @@ function step() {
     }
   }
   if (dragging === null) {
-    if (close_to_knob && !dragging_knob && import_shaku2.input.mousePressed()) {
-      dragging_knob = true;
-    }
-    if (dragging_knob) {
-      let goal = (OFFSET.x + TILE_SIZE * 4 - mouse_pos.x) / (TILE_SIZE * 2);
-      goal = clamp(goal, -1, 1);
-      if (!in_use) {
-        THINGY = goal;
-      } else {
-        goal = moveTowards(Math.round(THINGY), goal, CONFIG.thingySlack);
-        THINGY = clamp(goal, -1, 1);
-      }
-      if (import_shaku.default.input.mouseReleased()) {
-        dragging_knob = false;
-      }
+    let goal = THINGY;
+    if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.down) || import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.s)) {
+      goal = in_use ? moveTowards(Math.round(THINGY), 0, CONFIG.thingySlack) : moveTowards(THINGY, 0, CONFIG.knobKeyboardSpeed);
+      THINGY = clamp(goal, -1, 1);
+    } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.right) || import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.d)) {
+      goal = in_use ? moveTowards(Math.round(THINGY), -1, CONFIG.thingySlack) : moveTowards(THINGY, -1, CONFIG.knobKeyboardSpeed);
+      THINGY = clamp(goal, -1, 1);
+    } else if (import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.left) || import_shaku2.input.keyDown(import_key_codes.KeyboardKeys.a)) {
+      goal = in_use ? moveTowards(Math.round(THINGY), 1, CONFIG.thingySlack) : moveTowards(THINGY, 1, CONFIG.knobKeyboardSpeed);
+      THINGY = clamp(goal, -1, 1);
     } else {
-      let thingyGoal = Math.round(THINGY);
-      THINGY = moveTowards(THINGY, thingyGoal, import_shaku.default.gameTime.delta * CONFIG.thingySpeed);
+      if (close_to_knob && !dragging_knob && import_shaku2.input.mousePressed()) {
+        dragging_knob = true;
+      }
+      if (dragging_knob) {
+        goal = (OFFSET.x + TILE_SIZE * 4 - mouse_pos.x) / (TILE_SIZE * 2);
+        goal = clamp(goal, -1, 1);
+        if (!in_use) {
+          THINGY = moveTowards(THINGY, goal, CONFIG.knobSpeed);
+        } else {
+          goal = moveTowards(Math.round(THINGY), goal, CONFIG.thingySlack);
+          THINGY = clamp(goal, -1, 1);
+        }
+        if (import_shaku.default.input.mouseReleased()) {
+          dragging_knob = false;
+        }
+      } else {
+        let thingyGoal = Math.round(THINGY);
+        THINGY = moveTowards(THINGY, thingyGoal, import_shaku.default.gameTime.delta * CONFIG.thingySpeed);
+      }
     }
     knob_sprite.position.x = OFFSET.x + TILE_SIZE * 4 - THINGY * TILE_SIZE * 2;
     cars.forEach((c) => c.recalcStuff());

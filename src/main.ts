@@ -18,6 +18,8 @@ const CONFIG = {
     friction: 5.5,
     margin: 2 * 7 / 120, // 2 * empty pixels / texture tile size
     thingySlack: .05,
+    knobSpeed: .2,
+    knobKeyboardSpeed: .1,
 };
 let gui = new dat.GUI({});
 gui.remember(CONFIG);
@@ -27,7 +29,7 @@ gui.add(CONFIG, "thingySpeed", 0, 50);
 gui.add(CONFIG, "friction", 0, 10);
 gui.add(CONFIG, "margin", 0, .5);
 gui.add(CONFIG, "thingySlack", 0, .5);
-gui.hide();
+// gui.hide();
 
 // init shaku
 await Shaku.init();
@@ -875,7 +877,7 @@ function step() {
     knob_sprite.color = in_use ? COLOR_KNOB_INACTIVE : COLOR_KNOB_ACTIVE;
 
     let mouse_pos = Shaku.input.mousePosition;
-    let close_to_knob = mouse_pos.distanceTo(knob_sprite.position as Vector2) < TILE_SIZE * .75;
+    let close_to_knob = (Math.abs(mouse_pos.y - knob_sprite.position.y) < TILE_SIZE * .75) && (Math.abs(mouse_pos.x - (OFFSET.x + TILE_SIZE * 4)) < TILE_SIZE * 2.75);
     let hover_frame = grid.screen2frame(mouse_pos);
     if (dragging_knob || dragging) {
         document.body.style.cursor = "grabbing";
@@ -888,31 +890,37 @@ function step() {
     }
 
     if (dragging === null) {
-        /*if (input.keyDown(KeyboardKeys.down) || input.keyDown(KeyboardKeys.s)) {
-            thingyGoal = in_use ? moveTowards(thingyGoal, 0, CONFIG.thingySlack) : 0;
+        let goal = THINGY;
+        if (input.keyDown(KeyboardKeys.down) || input.keyDown(KeyboardKeys.s)) {
+            goal = in_use ? moveTowards(Math.round(THINGY), 0, CONFIG.thingySlack) : moveTowards(THINGY, 0, CONFIG.knobKeyboardSpeed);
+            THINGY = clamp(goal, -1, 1);
         } else if (input.keyDown(KeyboardKeys.right) || input.keyDown(KeyboardKeys.d)) {
-            thingyGoal = in_use ? moveTowards(thingyGoal, 1, CONFIG.thingySlack) : 1;
+            goal = in_use ? moveTowards(Math.round(THINGY), -1, CONFIG.thingySlack) : moveTowards(THINGY, -1, CONFIG.knobKeyboardSpeed);
+            THINGY = clamp(goal, -1, 1);
         } else if (input.keyDown(KeyboardKeys.left) || input.keyDown(KeyboardKeys.a)) {
-            thingyGoal = in_use ? moveTowards(thingyGoal, -1, CONFIG.thingySlack) : -1;
-        }*/
-        if (close_to_knob && !dragging_knob && input.mousePressed()) {
-            dragging_knob = true;
-        }
-        if (dragging_knob) {
-            let goal = ((OFFSET.x + TILE_SIZE * 4) - mouse_pos.x) / (TILE_SIZE * 2);
-            goal = clamp(goal, -1, 1);
-            if (!in_use) {
-                THINGY = goal;
-            } else {
-                goal = moveTowards(Math.round(THINGY), goal, CONFIG.thingySlack);
-                THINGY = clamp(goal, -1, 1);
-            }
-            if (Shaku.input.mouseReleased()) {
-                dragging_knob = false;
-            }
+            goal = in_use ? moveTowards(Math.round(THINGY), 1, CONFIG.thingySlack) : moveTowards(THINGY, 1, CONFIG.knobKeyboardSpeed);
+            THINGY = clamp(goal, -1, 1);
         } else {
-            let thingyGoal = Math.round(THINGY);
-            THINGY = moveTowards(THINGY, thingyGoal, Shaku.gameTime.delta * CONFIG.thingySpeed);
+            if (close_to_knob && !dragging_knob && input.mousePressed()) {
+                dragging_knob = true;
+            }
+            if (dragging_knob) {
+                goal = ((OFFSET.x + TILE_SIZE * 4) - mouse_pos.x) / (TILE_SIZE * 2);
+                goal = clamp(goal, -1, 1);
+                if (!in_use) {
+                    // THINGY = goal;
+                    THINGY = moveTowards(THINGY, goal, CONFIG.knobSpeed)
+                } else {
+                    goal = moveTowards(Math.round(THINGY), goal, CONFIG.thingySlack);
+                    THINGY = clamp(goal, -1, 1);
+                }
+                if (Shaku.input.mouseReleased()) {
+                    dragging_knob = false;
+                }
+            } else {
+                let thingyGoal = Math.round(THINGY);
+                THINGY = moveTowards(THINGY, thingyGoal, Shaku.gameTime.delta * CONFIG.thingySpeed);
+            }
         }
         knob_sprite.position.x = OFFSET.x + TILE_SIZE * 4 - THINGY * TILE_SIZE * 2;
         cars.forEach(c => c.recalcStuff());
